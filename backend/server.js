@@ -2,21 +2,21 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import bcrypt from 'bcryptjs'
-import { authRequired, signToken } from './src/auth.js'
+import { authRequired, signToken } from './auth.js'
 import {
   adjustWallet,
   connectDb,
   findPlayerById,
   findPlayerByPhone,
   getWallet,
-} from './src/store.js'
-import { registerOperatorRoutes } from './src/operatorRoutes.js'
-import { validateGapEnv } from './src/validateEnv.js'
-import { ensureDefaultAdmin } from './src/middleware/adminAuth.js'
-import { seedDirectGames } from './src/seedDirectGames.js'
-import adminRoutes from './src/routes/admin.routes.js'
-import gameRoutes from './src/routes/game.routes.js'
-import walletRoutes from './src/routes/wallet.routes.js'
+} from './store.js'
+import { registerOperatorRoutes } from './operatorRoutes.js'
+import { validateGapEnv } from './validateEnv.js'
+import { ensureDefaultAdmin } from './middleware/adminAuth.js'
+import { seedDirectGames } from './seedDirectGames.js'
+import adminRoutes from './routes/admin.routes.js'
+import gameRoutes from './routes/game.routes.js'
+import walletRoutes from './routes/wallet.routes.js'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3010
