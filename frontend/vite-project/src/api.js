@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:3010').replace(/\/$/, '')
+const AUTH_BASE = `${API_ROOT}/api/v1`
 const USER_KEY = 'allgames_user'
 
 export function getStoredUser() {
@@ -15,12 +16,12 @@ export function setStoredUser(user) {
   else localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
-export async function api(path, { method = 'GET', body, token } = {}) {
+async function request(url, { method = 'GET', body, token } = {}) {
   const headers = { 'Content-Type': 'application/json' }
   const authToken = token || getStoredUser()?.token
   if (authToken) headers.Authorization = `Bearer ${authToken}`
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -33,13 +34,37 @@ export async function api(path, { method = 'GET', body, token } = {}) {
   return data
 }
 
-export const register = (payload) => api('/auth/register', { method: 'POST', body: payload })
-export const login = (payload) => api('/auth/login', { method: 'POST', body: payload })
-export const fetchMe = () => api('/auth/me')
-export const fetchBalance = () => api('/wallet/balance')
-export const fetchGames = () => api('/games')
-export const launchGame = (gameCode) =>
-  api(`/games/launch/${gameCode}`, {
+export const login = (payload) =>
+  request(`${AUTH_BASE}/auth/login`, { method: 'POST', body: payload })
+export const fetchMe = () => request(`${AUTH_BASE}/auth/me`)
+export const fetchBalance = () => request(`${AUTH_BASE}/wallet/balance`)
+
+export const fetchGames = () =>
+  request(`${API_ROOT}/api/game/list?fields=home&limit=24`)
+
+export function extractLaunchUrl(res) {
+  return (
+    res?.launchUrl ||
+    res?.data?.launchUrl ||
+    res?.url ||
+    res?.gameUrl ||
+    res?.sessionUrl ||
+    res?.redirectUrl ||
+    ''
+  )
+}
+
+export async function launchGame(gameId) {
+  const user = getStoredUser()
+  if (!user?.id && !user?.playerId) throw new Error('Not logged in')
+  const res = await request(`${API_ROOT}/api/game/launch`, {
     method: 'POST',
-    body: { returnUrl: window.location.origin },
+    body: {
+      userId: user.id || user.playerId,
+      gameId,
+    },
   })
+  const launchUrl = extractLaunchUrl(res)
+  if (!launchUrl) throw new Error('Launch URL missing from response')
+  return { ...res, launchUrl }
+}

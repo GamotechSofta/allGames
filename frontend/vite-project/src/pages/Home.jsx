@@ -1,23 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import { fetchGames, launchGame } from '../api'
 
-const GAME_STYLES = {
-  LUDO: {
-    accent: 'from-amber-500/30 to-orange-600/10',
-    badge: 'bg-amber-400 text-amber-950',
-    button: 'bg-amber-400 text-amber-950 hover:bg-amber-300',
-  },
-  TEENPATTI: {
-    accent: 'from-rose-500/30 to-fuchsia-700/10',
-    badge: 'bg-rose-400 text-rose-950',
-    button: 'bg-rose-400 text-rose-950 hover:bg-rose-300',
-  },
-}
-
 export default function Home() {
   const { user, loading, logout, refreshBalance } = useAuth()
+  const navigate = useNavigate()
   const [games, setGames] = useState([])
   const [error, setError] = useState('')
   const [launching, setLaunching] = useState('')
@@ -30,6 +18,22 @@ export default function Home() {
     refreshBalance().catch(() => {})
   }, [user, refreshBalance])
 
+  useEffect(() => {
+    if (!user) return undefined
+    const onFocus = () => {
+      refreshBalance().catch(() => {})
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') onFocus()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [user, refreshBalance])
+
   if (loading) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-slate-950 text-slate-300">
@@ -40,13 +44,33 @@ export default function Home() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  async function onPlay(gameCode) {
+  async function onPlay(game) {
+    const gameId = game.gameId || game.gameCode
     setError('')
-    setLaunching(gameCode)
+    setLaunching(gameId)
     try {
       await refreshBalance()
-      const res = await launchGame(gameCode)
-      window.location.assign(res.launchUrl)
+      const res = await launchGame(gameId)
+      // Direct games: new tab keeps lobby alive (avoids BFCache / Vite WS errors on return)
+      if (String(game.provider || res.provider || '').toUpperCase() === 'DIRECT') {
+        const tab = window.open(res.launchUrl, '_blank', 'noopener,noreferrer')
+        if (!tab) {
+          // Popup blocked — same-tab fallback
+          window.location.assign(res.launchUrl)
+          return
+        }
+        setLaunching('')
+        refreshBalance().catch(() => {})
+        return
+      }
+      navigate('/play', {
+        state: {
+          launchUrl: res.launchUrl,
+          sessionId: res.sessionId,
+          gameName: game.title || game.name || gameId,
+          gameId,
+        },
+      })
     } catch (err) {
       setError(err.message || 'Could not launch game')
       setLaunching('')
@@ -90,9 +114,9 @@ export default function Home() {
 
       <main className="mx-auto max-w-5xl px-4 pb-16">
         <div className="mb-8">
-          <h2 className="text-2xl font-semibold">Play now</h2>
+          <h2 className="text-2xl font-semibold">Casino games</h2>
           <p className="mt-1 text-slate-400">
-            Logged-in players launch with their player ID, token, and wallet balance.
+            Tap a game to launch via GAP (opens in-app iframe).
           </p>
         </div>
 
@@ -100,25 +124,36 @@ export default function Home() {
           <p className="mb-6 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-300">{error}</p>
         ) : null}
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {games.map((game) => {
-            const style = GAME_STYLES[game.gameCode] || GAME_STYLES.LUDO
-            const busy = launching === game.gameCode
+            const id = game.gameId
+            const busy = launching === id
             return (
               <article
-                key={game.gameCode}
-                className={`overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${style.accent} p-6`}
+                key={game._id || id}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/80 to-slate-950 p-5"
               >
-                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}>
-                  {game.gameCode}
+                {game.image ? (
+                  <img
+                    src={game.image}
+                    alt=""
+                    className="mb-4 h-36 w-full rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="mb-4 flex h-36 items-center justify-center rounded-xl bg-slate-800 text-slate-500">
+                    {game.provider || 'GAP'}
+                  </div>
+                )}
+                <span className="inline-flex rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">
+                  {game.provider}
                 </span>
-                <h3 className="mt-4 text-2xl font-semibold">{game.name}</h3>
-                <p className="mt-2 text-sm text-slate-300">{game.description}</p>
+                <h3 className="mt-3 text-xl font-semibold">{game.title || game.name}</h3>
+                <p className="mt-1 font-mono text-xs text-slate-400">{id}</p>
                 <button
                   type="button"
                   disabled={Boolean(launching)}
-                  onClick={() => onPlay(game.gameCode)}
-                  className={`mt-6 w-full rounded-xl py-2.5 font-semibold transition disabled:opacity-60 ${style.button}`}
+                  onClick={() => onPlay(game)}
+                  className="mt-5 w-full rounded-xl bg-emerald-500 py-2.5 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
                 >
                   {busy ? 'Launching…' : 'Play'}
                 </button>
@@ -126,6 +161,12 @@ export default function Home() {
             )
           })}
         </div>
+
+        {!games.length && !error ? (
+          <p className="mt-8 text-center text-slate-400">
+            No active games yet. Add games from the admin panel (port 5175).
+          </p>
+        ) : null}
       </main>
     </div>
   )

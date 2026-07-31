@@ -1,7 +1,3 @@
-function encode(value) {
-  return encodeURIComponent(value == null ? '' : String(value))
-}
-
 function joinUrl(base, params) {
   const url = new URL(base)
   for (const [key, value] of Object.entries(params)) {
@@ -12,8 +8,11 @@ function joinUrl(base, params) {
 }
 
 /**
- * Build launch URLs with player identity + wallet context.
- * Games (Ludo / Teen Patti) receive userId, token, balance, operatorId, etc.
+ * PotLudo (fashionbuddies) only reads:
+ *   id       = operator JWT (our player token)
+ *   game_id  = numeric operator game id
+ *
+ * Teen Patti uses similar operator-style params.
  */
 export function buildLaunchUrl(gameCode, ctx) {
   const {
@@ -28,28 +27,21 @@ export function buildLaunchUrl(gameCode, ctx) {
   const operatorId = process.env.APP_OPERATOR_ID || '1'
   const code = String(gameCode || '').toUpperCase()
 
-  const shared = {
-    userId: playerId,
-    player_id: playerId,
-    playerId,
-    operatorId,
-    operator_id: operatorId,
-    token,
-    id: token,
-    balance: String(balance ?? 0),
-    username: username || phone || playerId,
-    name: username || phone || playerId,
-    currency: 'INR',
-    returnUrl: returnUrl || process.env.FRONTEND_URL || '',
-  }
-
   if (code === 'LUDO') {
-    const base = process.env.LUDO_LAUNCH_BASE_URL
-    if (!base) throw new Error('LUDO_LAUNCH_BASE_URL is not configured')
+    const base =
+      process.env.LUDO_LAUNCH_BASE_URL ||
+      'https://www.fashionbuddies.in/play/online'
+    const gameId = process.env.LUDO_OPERATOR_GAME_ID || '1'
+    // PotLudo online mode: POST /api/v1/identity/operator/session { id, gameId }
     return joinUrl(base, {
-      ...shared,
-      gameId: 'LUDO',
-      game_id: 'LUDO',
+      id: token,
+      game_id: gameId,
+      gameId,
+      userId: playerId,
+      operatorId,
+      balance: String(balance ?? 0),
+      username: username || phone || playerId,
+      returnUrl: returnUrl || process.env.FRONTEND_URL || '',
     })
   }
 
@@ -59,11 +51,19 @@ export function buildLaunchUrl(gameCode, ctx) {
     const operatorGameId = process.env.TEENPATTI_OPERATOR_GAME_ID || '2'
     const catalogGameId = process.env.TEENPATTI_CATALOG_GAME_ID || 'teenpatti'
     return joinUrl(base, {
-      ...shared,
+      id: token,
+      token,
+      userId: playerId,
+      playerId,
+      operatorId,
+      operator_id: operatorId,
       gameId: operatorGameId,
       game_id: operatorGameId,
       catalogGameId,
       catalog_game_id: catalogGameId,
+      balance: String(balance ?? 0),
+      username: username || phone || playerId,
+      returnUrl: returnUrl || process.env.FRONTEND_URL || '',
     })
   }
 
@@ -82,6 +82,3 @@ export const CATALOG = [
     description: 'Play Teen Patti with your wallet balance',
   },
 ]
-
-// keep encode available for tests / debugging
-export { encode }

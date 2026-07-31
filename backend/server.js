@@ -6,19 +6,29 @@ import { authRequired, signToken } from './src/auth.js'
 import {
   adjustWallet,
   connectDb,
-  createPlayer,
   findPlayerById,
   findPlayerByPhone,
   getWallet,
 } from './src/store.js'
-import { buildLaunchUrl, CATALOG } from './src/launch.js'
+import { registerOperatorRoutes } from './src/operatorRoutes.js'
+import { validateGapEnv } from './src/validateEnv.js'
+import { ensureDefaultAdmin } from './src/middleware/adminAuth.js'
+import { seedDirectGames } from './src/seedDirectGames.js'
+import adminRoutes from './src/routes/admin.routes.js'
+import gameRoutes from './src/routes/game.routes.js'
+import walletRoutes from './src/routes/wallet.routes.js'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3010
-const STARTING_BALANCE = Number(process.env.STARTING_BALANCE) || 10000
 
 app.use(cors({ origin: true, credentials: true }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
+
+registerOperatorRoutes(app)
+
+app.use('/api/admin', adminRoutes)
+app.use('/api/game', gameRoutes)
+app.use('/api/wallet', walletRoutes)
 
 function normalizePhone(raw) {
   return String(raw || '').replace(/\D/g, '').slice(0, 10)
@@ -44,40 +54,15 @@ app.get('/api/v1/health', (_req, res) => {
   res.json({ success: true, service: 'allgames-backend' })
 })
 
-app.post('/api/v1/auth/register', async (req, res) => {
-  try {
-    const phone = normalizePhone(req.body?.phone)
-    const password = String(req.body?.password || '')
-    const username = String(req.body?.username || '').trim() || `Player${phone.slice(-4)}`
+app.get('/api/health', (_req, res) => {
+  res.json({ success: true, service: 'allgames-backend' })
+})
 
-    if (phone.length < 10 || password.length < 4) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valid 10-digit phone and password (min 4 chars) are required',
-      })
-    }
-
-    if (await findPlayerByPhone(phone)) {
-      return res.status(409).json({ success: false, message: 'Phone already registered' })
-    }
-
-    const player = await createPlayer({
-      phone,
-      username,
-      passwordHash: await bcrypt.hash(password, 10),
-      startingBalance: STARTING_BALANCE,
-    })
-
-    const token = signToken(playerIdOf(player))
-    return res.status(201).json({
-      success: true,
-      message: 'Registered successfully',
-      data: await playerPayload(player, token),
-    })
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ success: false, message: 'Registration failed' })
-  }
+app.post('/api/v1/auth/register', (_req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Public signup is disabled. Ask admin to create your account.',
+  })
 })
 
 app.post('/api/v1/auth/login', async (req, res) => {
@@ -140,36 +125,6 @@ app.get('/api/v1/wallet/balance', authRequired, async (req, res) => {
   }
 })
 
-app.post('/api/v1/wallet/balance', async (req, res) => {
-  try {
-    const playerId =
-      req.body?.playerId ||
-      req.body?.userId ||
-      req.body?.externalPlayerId ||
-      req.query?.playerId ||
-      req.query?.userId
-
-    if (!playerId) {
-      return res.status(400).json({ success: false, message: 'playerId is required' })
-    }
-
-    const player = await findPlayerById(String(playerId))
-    if (!player) {
-      return res.status(404).json({ success: false, message: 'Player not found' })
-    }
-
-    const id = playerIdOf(player)
-    const wallet = await getWallet(id)
-    return res.json({
-      success: true,
-      data: { playerId: id, balance: wallet.balance, currency: 'INR' },
-    })
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ success: false, message: 'Failed to load balance' })
-  }
-})
-
 app.post('/api/v1/wallet/debit', async (req, res) => {
   try {
     const playerId = req.body?.playerId || req.body?.userId
@@ -215,47 +170,11 @@ app.post('/api/v1/wallet/credit', async (req, res) => {
   }
 })
 
-app.get('/api/v1/games', (_req, res) => {
-  res.json({ success: true, data: CATALOG })
-})
-
-app.post('/api/v1/games/launch/:gameCode', authRequired, async (req, res) => {
-  try {
-    const player = await findPlayerById(req.playerId)
-    if (!player) {
-      return res.status(404).json({ success: false, message: 'Player not found' })
-    }
-
-    const id = playerIdOf(player)
-    const wallet = await getWallet(id)
-    const returnUrl =
-      req.body?.returnUrl ||
-      process.env.FRONTEND_URL ||
-      'http://localhost:5173'
-
-    const launchUrl = buildLaunchUrl(req.params.gameCode, {
-      playerId: id,
-      token: req.token,
-      balance: wallet.balance,
-      username: player.username,
-      phone: player.phone,
-      returnUrl,
-    })
-
-    return res.json({
-      success: true,
-      gameCode: String(req.params.gameCode).toUpperCase(),
-      launchUrl,
-      playerId: id,
-      balance: wallet.balance,
-    })
-  } catch (err) {
-    return res.status(400).json({ success: false, message: err.message || 'Launch failed' })
-  }
-})
-
 async function start() {
+  validateGapEnv()
   await connectDb(process.env.MONGODB_URI)
+  await ensureDefaultAdmin()
+  await seedDirectGames()
   app.listen(PORT, () => {
     console.log(`allGames backend listening on http://localhost:${PORT}`)
   })

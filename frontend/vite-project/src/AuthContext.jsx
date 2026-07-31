@@ -4,7 +4,6 @@ import {
   fetchMe,
   getStoredUser,
   login as loginApi,
-  register as registerApi,
   setStoredUser,
 } from './api'
 
@@ -50,15 +49,6 @@ export function AuthProvider({ children }) {
     [applyUser],
   )
 
-  const register = useCallback(
-    async (phone, password, username) => {
-      const res = await registerApi({ phone, password, username })
-      applyUser(res.data)
-      return res.data
-    },
-    [applyUser],
-  )
-
   const logout = useCallback(() => {
     setStoredUser(null)
     setUser(null)
@@ -76,8 +66,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, refresh, refreshBalance }),
-    [user, loading, login, register, logout, refresh, refreshBalance],
+    () => ({ user, loading, login, logout, refresh, refreshBalance }),
+    [user, loading, login, logout, refresh, refreshBalance],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
