@@ -37,7 +37,9 @@ export async function addPlayer(req, res) {
       startingBalance: Number.isFinite(startingBalance) ? Math.max(0, startingBalance) : 0,
     })
 
-    const wallet = await Wallet.findOne({ playerId: player._id }).lean()
+    const wallet = await Wallet.findOne({
+      $or: [{ userId: player._id }, { playerId: player._id }],
+    }).lean()
 
     return res.status(201).json({
       success: true,
@@ -59,11 +61,12 @@ export async function addPlayer(req, res) {
 export async function listPlayers(_req, res) {
   try {
     const players = await Player.find({}).sort({ createdAt: -1 }).lean()
+    const ids = players.map((p) => p._id)
     const wallets = await Wallet.find({
-      playerId: { $in: players.map((p) => p._id) },
+      $or: [{ userId: { $in: ids } }, { playerId: { $in: ids } }],
     }).lean()
     const walletMap = Object.fromEntries(
-      wallets.map((w) => [String(w.playerId), w.balance ?? 0]),
+      wallets.map((w) => [String(w.userId || w.playerId), w.balance ?? 0]),
     )
 
     return res.json({

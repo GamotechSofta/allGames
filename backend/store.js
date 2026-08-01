@@ -5,18 +5,27 @@ const playerSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true, index: true },
     username: { type: String, required: true },
     passwordHash: { type: String, required: true },
+    currency: { type: String, default: 'INR', trim: true },
   },
   { timestamps: true },
 )
 
+/** Wallet.balance is the single source of truth for GAP play. */
 const walletSchema = new mongoose.Schema(
   {
-    playerId: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Player',
       required: true,
       unique: true,
       index: true,
+    },
+    // legacy alias kept for older documents
+    playerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Player',
+      index: true,
+      sparse: true,
     },
     balance: { type: Number, required: true, default: 0, min: 0 },
   },
@@ -42,23 +51,49 @@ export function findPlayerById(id) {
   return Player.findById(id).lean()
 }
 
+function asObjectId(id) {
+  return new mongoose.Types.ObjectId(String(id))
+}
+
+async function findWalletDoc(userId, session = null) {
+  const oid = asObjectId(userId)
+  const q = Wallet.findOne({ $or: [{ userId: oid }, { playerId: oid }] })
+  return session ? q.session(session) : q
+}
+
 export async function createPlayer({ phone, username, passwordHash, startingBalance = 0 }) {
   const player = await Player.create({ phone, username, passwordHash })
-  await Wallet.create({ playerId: player._id, balance: startingBalance })
+  await Wallet.create({
+    userId: player._id,
+    playerId: player._id,
+    balance: startingBalance,
+  })
   return player.toObject()
 }
 
-export async function getWallet(playerId) {
-  let wallet = await Wallet.findOne({ playerId }).lean()
+export async function getWallet(userId, session = null) {
+  let wallet = await findWalletDoc(userId, session)
   if (!wallet) {
-    const created = await Wallet.create({ playerId, balance: 0 })
-    wallet = created.toObject()
+    const created = new Wallet({
+      userId: asObjectId(userId),
+      playerId: asObjectId(userId),
+      balance: 0,
+    })
+    if (session) await created.save({ session })
+    else await created.save()
+    wallet = created
   }
-  return wallet
+  // backfill userId on legacy docs
+  if (!wallet.userId && wallet.playerId) {
+    wallet.userId = wallet.playerId
+    if (session) await wallet.save({ session })
+    else await wallet.save()
+  }
+  return wallet.toObject ? wallet.toObject() : wallet
 }
 
-export async function adjustWallet(playerId, delta) {
-  const wallet = await Wallet.findOne({ playerId })
+export async function adjustWallet(userId, delta, session = null) {
+  const wallet = await findWalletDoc(userId, session)
   if (!wallet) {
     const err = new Error('Wallet not found')
     err.code = 'WALLET_NOT_FOUND'
@@ -69,10 +104,13 @@ export async function adjustWallet(playerId, delta) {
   if (next < 0) {
     const err = new Error('Insufficient balance')
     err.code = 'INSUFFICIENT_BALANCE'
+    err.currentBalance = Number(wallet.balance || 0)
     throw err
   }
 
   wallet.balance = next
-  await wallet.save()
+  if (!wallet.userId) wallet.userId = wallet.playerId || asObjectId(userId)
+  if (session) await wallet.save({ session })
+  else await wallet.save()
   return wallet.toObject()
 }

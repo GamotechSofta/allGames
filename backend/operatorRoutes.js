@@ -126,12 +126,29 @@ async function balanceV2Handler(req, res) {
  * Set PotLudo APP_OPERATOR_BASE_URL to this backend's public URL.
  */
 export function registerOperatorRoutes(app) {
+  app.use((req, res, next) => {
+    if (
+      req.path.includes('/service/user/detail') ||
+      req.path.includes('/service/operator/user/balance')
+    ) {
+      console.log(
+        '[OPERATOR]',
+        req.method,
+        req.path,
+        'token=' + Boolean(readToken(req)),
+        'ip=' + req.ip,
+      )
+    }
+    next()
+  })
+
   app.get('/service/user/detail', userDetailHandler)
   app.get('/operator/service/user/detail', userDetailHandler)
   app.post('/service/operator/user/balance/v2', balanceV2Handler)
   app.post('/operator/service/operator/user/balance/v2', balanceV2Handler)
 
-  app.post('/api/wallet/credit', async (req, res) => {
+  // Operator credit helper — do NOT mount on /api/wallet/* (reserved for GAP callbacks)
+  async function operatorCreditHandler(req, res) {
     try {
       let playerId = req.body?.user_id || req.body?.userId || req.body?.playerId
       if (!playerId) playerId = verifyPlayerToken(readToken(req))
@@ -149,5 +166,8 @@ export function registerOperatorRoutes(app) {
     } catch (err) {
       return res.status(500).json({ status: false, msg: err.message })
     }
-  })
+  }
+
+  app.post('/service/operator/wallet/credit', operatorCreditHandler)
+  app.post('/operator/service/operator/wallet/credit', operatorCreditHandler)
 }

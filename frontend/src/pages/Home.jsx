@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import { fetchGames, launchGame } from '../api'
 
 export default function Home() {
   const { user, loading, logout, refreshBalance } = useAuth()
-  const navigate = useNavigate()
   const [games, setGames] = useState([])
   const [error, setError] = useState('')
   const [launching, setLaunching] = useState('')
@@ -45,32 +44,18 @@ export default function Home() {
   if (!user) return <Navigate to="/login" replace />
 
   async function onPlay(game) {
+    if (launching) return
     const gameId = game.gameId || game.gameCode
     setError('')
     setLaunching(gameId)
     try {
       await refreshBalance()
       const res = await launchGame(gameId)
-      // Direct games: new tab keeps lobby alive (avoids BFCache / Vite WS errors on return)
-      if (String(game.provider || res.provider || '').toUpperCase() === 'DIRECT') {
-        const tab = window.open(res.launchUrl, '_blank', 'noopener,noreferrer')
-        if (!tab) {
-          // Popup blocked — same-tab fallback
-          window.location.assign(res.launchUrl)
-          return
-        }
-        setLaunching('')
-        refreshBalance().catch(() => {})
-        return
-      }
-      navigate('/play', {
-        state: {
-          launchUrl: res.launchUrl,
-          sessionId: res.sessionId,
-          gameName: game.title || game.name || gameId,
-          gameId,
-        },
-      })
+      const url = res.launchUrl
+      if (!url) throw new Error('Launch URL missing from response')
+
+      // Always open once in the same tab (no window.open / no second navigation)
+      window.location.assign(url)
     } catch (err) {
       setError(err.message || 'Could not launch game')
       setLaunching('')
@@ -116,7 +101,7 @@ export default function Home() {
         <div className="mb-8">
           <h2 className="text-2xl font-semibold">Casino games</h2>
           <p className="mt-1 text-slate-400">
-            Tap a game to launch via GAP (opens in-app iframe).
+            Tap a game to play (opens in this tab).
           </p>
         </div>
 

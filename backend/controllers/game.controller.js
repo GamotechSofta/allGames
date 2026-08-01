@@ -5,11 +5,25 @@ import { findPlayerById, getWallet } from '../store.js'
 import { gapRequest } from '../services/gap.service.js'
 import { buildLaunchUrl } from '../launch.js'
 import { isDirectLaunchGame } from '../seedDirectGames.js'
+import { auditLog } from '../utils/logger.js'
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ''))
 
 function playerIdOf(player) {
   return String(player._id || player.id)
+}
+
+function auditLaunch(req, status, meta = {}) {
+  auditLog('[GAME_LAUNCH_AUDIT]', {
+    route: '/api/game/launch',
+    method: req.method,
+    timestamp: new Date().toISOString(),
+    userId: req.body?.userId || req.playerId || null,
+    gameId: req.body?.gameId || null,
+    status,
+    request: { userId: req.body?.userId, gameId: req.body?.gameId },
+    responseSummary: meta.responseSummary || null,
+  })
 }
 
 /** POST /api/admin/game/add */
@@ -97,15 +111,12 @@ export async function listActiveGames(req, res) {
   try {
     const fieldsPreset = String(req.query.fields || '').toLowerCase()
     const parsedLimit = Number.parseInt(String(req.query.limit || ''), 10)
-    const limit =
+    let limit =
       Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : null
+    if (limit == null && fieldsPreset === 'home') limit = 12
 
     let query = Game.find({ status: 'active' }).sort({ createdAt: -1 })
-    if (fieldsPreset === 'home') {
-      query = query.select('name gameId provider title image status createdAt')
-    } else {
-      query = query.select('name gameId provider title image status createdAt')
-    }
+    query = query.select('_id name gameId provider title image status createdAt')
     if (limit) query = query.limit(limit)
 
     const games = await query.lean()
@@ -120,54 +131,68 @@ export async function listActiveGames(req, res) {
 
 /**
  * POST /api/game/launch
- * Body: { userId, gameId }
+ * Body: { userId?, gameId } — userId preferably derived from JWT
  */
 export async function launchGame(req, res) {
   try {
-    const { userId, gameId } = req.body || {}
+    auditLaunch(req, 'REQUESTED')
 
-    if (!userId || !gameId) {
-      return res.status(400).json({
-        success: false,
-        message: 'userId and gameId are required',
-      })
-    }
-    if (!isValidObjectId(userId)) {
-      return res.status(400).json({ success: false, message: 'Invalid userId' })
-    }
-
-    // Prefer authenticated player; body userId must match token when present
-    if (req.playerId && String(req.playerId) !== String(userId)) {
+    const gameIdRaw = req.body?.gameId || req.body?.gameCode
+    // Prefer JWT-derived userId; in production never trust body.userId alone
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production'
+    let userId = req.playerId || req.body?.userId
+    if (isProd) {
+      if (!req.playerId) {
+        auditLaunch(req, 'FAILED', { responseSummary: { message: 'Authentication required' } })
+        return res.status(401).json({ success: false, message: 'Authentication required' })
+      }
+      userId = req.playerId
+    } else if (req.playerId && req.body?.userId && String(req.playerId) !== String(req.body.userId)) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'userId mismatch' } })
       return res.status(403).json({
         success: false,
         message: 'userId does not match authenticated player',
       })
     }
 
+    if (!userId || !gameIdRaw) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'userId and gameId are required' } })
+      return res.status(400).json({
+        success: false,
+        message: 'userId and gameId are required',
+      })
+    }
+    if (!isValidObjectId(userId)) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'Invalid userId' } })
+      return res.status(400).json({ success: false, message: 'Invalid userId' })
+    }
+
     const user = await findPlayerById(userId)
     if (!user) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'User not found' } })
       return res.status(404).json({ success: false, message: 'User not found' })
     }
 
     const wallet = await getWallet(playerIdOf(user))
-    const game = await Game.findOne({ gameId: String(gameId).trim() }).lean()
+    const catalogGameId = String(gameIdRaw).trim()
+    const game = await Game.findOne({ gameId: catalogGameId }).lean()
     if (!game) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'Game not found' } })
       return res.status(404).json({ success: false, message: 'Game not found' })
     }
 
     const active = game.status ? game.status === 'active' : !!game.isActive
     if (!active) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'Game is inactive' } })
       return res.status(403).json({ success: false, message: 'Game is inactive' })
     }
 
-    const catalogGameId = String(gameId).trim()
     const playerId = playerIdOf(user)
     const balance = Number(wallet.balance || 0)
     let gapResponse = null
     let launchUrl = ''
     let sessionId = ''
 
-    // Ludo / Teen Patti: direct launch URLs from env (not GAP)
     if (isDirectLaunchGame(catalogGameId, game.provider)) {
       const token = req.token
       if (!token) {
@@ -191,6 +216,9 @@ export async function launchGame(req, res) {
         userId: playerId,
         balance,
         gameId: catalogGameId,
+        playerName: user.username || user.phone || playerId,
+        currency: user.currency || 'INR',
+        language: 'en',
       }
 
       try {
@@ -218,6 +246,10 @@ export async function launchGame(req, res) {
       rawResponse: gapResponse,
     })
 
+    auditLaunch(req, 'SUCCESS', {
+      responseSummary: { message: 'Game launch successful', sessionId: String(sessionId || '') },
+    })
+
     return res.json({
       success: true,
       launchUrl,
@@ -227,6 +259,7 @@ export async function launchGame(req, res) {
     })
   } catch (error) {
     console.error('[GAME] launch error', error)
+    auditLaunch(req, 'FAILED', { responseSummary: { message: 'Failed to launch game' } })
     return res.status(500).json({
       success: false,
       message: 'Failed to launch game',

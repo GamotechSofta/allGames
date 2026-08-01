@@ -4,7 +4,6 @@ import cors from 'cors'
 import bcrypt from 'bcryptjs'
 import { authRequired, signToken } from './auth.js'
 import {
-  adjustWallet,
   connectDb,
   findPlayerById,
   findPlayerByPhone,
@@ -21,14 +20,29 @@ import walletRoutes from './routes/wallet.routes.js'
 const app = express()
 const PORT = Number(process.env.PORT) || 3010
 
-app.use(cors({ origin: true, credentials: true }))
+function parseCorsOrigins() {
+  const raw = String(process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (!raw.length) return true // reflect request origin in dev if unset
+  if (raw.includes('*')) return true
+  return raw
+}
+
+const corsOrigins = parseCorsOrigins()
+const corsCredentials =
+  String(process.env.CORS_CREDENTIALS || 'true').toLowerCase() !== 'false'
+
+app.use(
+  cors({
+    origin: corsOrigins,
+    credentials: corsCredentials,
+  }),
+)
 app.use(express.json({ limit: '1mb' }))
 
 registerOperatorRoutes(app)
-
-app.use('/api/admin', adminRoutes)
-app.use('/api/game', gameRoutes)
-app.use('/api/wallet', walletRoutes)
 
 function normalizePhone(raw) {
   return String(raw || '').replace(/\D/g, '').slice(0, 10)
@@ -112,6 +126,7 @@ app.get('/api/v1/auth/me', authRequired, async (req, res) => {
   }
 })
 
+/** Player JWT balance (GET) — registered before GAP wallet router mount */
 app.get('/api/v1/wallet/balance', authRequired, async (req, res) => {
   try {
     const wallet = await getWallet(req.playerId)
@@ -125,50 +140,12 @@ app.get('/api/v1/wallet/balance', authRequired, async (req, res) => {
   }
 })
 
-app.post('/api/v1/wallet/debit', async (req, res) => {
-  try {
-    const playerId = req.body?.playerId || req.body?.userId
-    const amount = Number(req.body?.amount)
-    if (!playerId || !(amount > 0)) {
-      return res.status(400).json({ success: false, message: 'playerId and positive amount required' })
-    }
-    if (!(await findPlayerById(String(playerId)))) {
-      return res.status(404).json({ success: false, message: 'Player not found' })
-    }
-    const wallet = await adjustWallet(String(playerId), -amount)
-    return res.json({
-      success: true,
-      data: { playerId, balance: wallet.balance, currency: 'INR' },
-    })
-  } catch (err) {
-    if (err.code === 'INSUFFICIENT_BALANCE') {
-      return res.status(400).json({ success: false, message: err.message })
-    }
-    console.error(err)
-    return res.status(500).json({ success: false, message: 'Debit failed' })
-  }
-})
-
-app.post('/api/v1/wallet/credit', async (req, res) => {
-  try {
-    const playerId = req.body?.playerId || req.body?.userId
-    const amount = Number(req.body?.amount)
-    if (!playerId || !(amount > 0)) {
-      return res.status(400).json({ success: false, message: 'playerId and positive amount required' })
-    }
-    if (!(await findPlayerById(String(playerId)))) {
-      return res.status(404).json({ success: false, message: 'Player not found' })
-    }
-    const wallet = await adjustWallet(String(playerId), amount)
-    return res.json({
-      success: true,
-      data: { playerId, balance: wallet.balance, currency: 'INR' },
-    })
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ success: false, message: 'Credit failed' })
-  }
-})
+app.use('/api/admin', adminRoutes)
+app.use('/api/v1/admin', adminRoutes)
+app.use('/api/game', gameRoutes)
+app.use('/api/v1/game', gameRoutes)
+app.use('/api/wallet', walletRoutes)
+app.use('/api/v1/wallet', walletRoutes)
 
 async function start() {
   validateGapEnv()
