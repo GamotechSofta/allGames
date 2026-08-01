@@ -56,13 +56,15 @@ export function AuthProvider({ children }) {
 
   const refreshBalance = useCallback(async () => {
     const res = await fetchBalance()
+    const balance = res.data.balance
     setUser((prev) => {
       if (!prev) return prev
-      const next = { ...prev, balance: res.data.balance }
+      if (Number(prev.balance) === Number(balance)) return prev
+      const next = { ...prev, balance }
       setStoredUser(next)
       return next
     })
-    return res.data.balance
+    return balance
   }, [])
 
   const value = useMemo(

@@ -8,17 +8,18 @@ export default function Home() {
   const [games, setGames] = useState([])
   const [error, setError] = useState('')
   const [launching, setLaunching] = useState('')
+  const userId = user?.id || user?.playerId
 
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     fetchGames()
       .then((res) => setGames(res.data || []))
       .catch((err) => setError(err.message))
     refreshBalance().catch(() => {})
-  }, [user, refreshBalance])
+  }, [userId, refreshBalance])
 
   useEffect(() => {
-    if (!user) return undefined
+    if (!userId) return undefined
     const onFocus = () => {
       refreshBalance().catch(() => {})
     }
@@ -31,7 +32,7 @@ export default function Home() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [user, refreshBalance])
+  }, [userId, refreshBalance])
 
   if (loading) {
     return (
