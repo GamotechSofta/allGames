@@ -62,11 +62,13 @@ export function extractLaunchUrl(res) {
 export async function launchGame(gameId) {
   const user = getStoredUser()
   if (!user?.id && !user?.playerId) throw new Error('Not logged in')
+  const returnUrl = `${window.location.origin}/?tab=games`
   const res = await request(`${API_ROOT}/api/game/launch`, {
     method: 'POST',
     body: {
       userId: user.id || user.playerId,
       gameId,
+      returnUrl,
     },
   })
   const launchUrl = extractLaunchUrl(res)

@@ -1,100 +1,146 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
+
+const PLAY_KEY = 'allgames_play_session'
 
 const SESSION_EXPIRED_RE =
   /login|session[_-]?expired|token[_-]?expired|unauthorized|\/401\b/i
 
+function readPlaySession(locationState) {
+  if (locationState?.launchUrl) {
+    const session = {
+      launchUrl: locationState.launchUrl,
+      gameName: locationState.gameName || 'Game',
+      sessionId: locationState.sessionId || '',
+      returnTab: locationState.returnTab || 'games',
+    }
+    try {
+      sessionStorage.setItem(PLAY_KEY, JSON.stringify(session))
+    } catch {
+      /* ignore */
+    }
+    return session
+  }
+  try {
+    const raw = sessionStorage.getItem(PLAY_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function viewportSize() {
+  const vv = window.visualViewport
+  return {
+    width: Math.max(1, Math.floor(vv?.width ?? window.innerWidth)),
+    height: Math.max(1, Math.floor(vv?.height ?? window.innerHeight)),
+  }
+}
+
 export default function GamePlay() {
-  const { user, logout } = useAuth()
+  const { user, logout, refreshBalance } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const iframeRef = useRef(null)
-  const historyDepth = useRef(0)
-  const [blocked, setBlocked] = useState('')
+  const [session] = useState(() => readPlaySession(location.state))
+  const [size, setSize] = useState(() => viewportSize())
 
-  const launchUrl = location.state?.launchUrl || ''
-  const gameName = location.state?.gameName || 'Game'
-  const sessionId = location.state?.sessionId || ''
-
+  const launchUrl = session?.launchUrl || ''
+  const gameName = session?.gameName || 'Game'
+  const returnTab = session?.returnTab || 'games'
   const canPlay = Boolean(user && launchUrl)
 
   const forceRelogin = useCallback(() => {
+    try {
+      sessionStorage.removeItem(PLAY_KEY)
+    } catch {
+      /* ignore */
+    }
     logout()
     navigate('/login', { replace: true, state: { reason: 'session_expired' } })
   }, [logout, navigate])
 
   useEffect(() => {
     if (!launchUrl) return
-    if (SESSION_EXPIRED_RE.test(launchUrl)) {
-      forceRelogin()
-    }
+    if (SESSION_EXPIRED_RE.test(launchUrl)) forceRelogin()
   }, [launchUrl, forceRelogin])
 
-  const iframeSrc = useMemo(() => launchUrl, [launchUrl])
+  useEffect(() => {
+    sessionStorage.setItem('allgames_tab', returnTab)
+  }, [returnTab])
 
-  function onBack() {
-    try {
-      const win = iframeRef.current?.contentWindow
-      if (win && historyDepth.current > 0) {
-        win.history.back()
-        historyDepth.current -= 1
-        return
-      }
-    } catch {
-      // cross-origin: cannot inspect iframe history
-    }
-    navigate('/', { replace: true })
-  }
+  useEffect(() => {
+    const sync = () => setSize(viewportSize())
+    sync()
 
-  function onIframeLoad() {
-    historyDepth.current += 1
-    try {
-      const href = iframeRef.current?.contentWindow?.location?.href || ''
-      if (href && SESSION_EXPIRED_RE.test(href)) {
-        setBlocked('Session expired')
-        forceRelogin()
-      }
-    } catch {
-      // ignore cross-origin access errors
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', sync)
+    vv?.addEventListener('scroll', sync)
+    window.addEventListener('resize', sync)
+    window.addEventListener('orientationchange', sync)
+
+    const html = document.documentElement
+    const body = document.body
+    const root = document.getElementById('root')
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      bodyMargin: body.style.margin,
+      rootHeight: root?.style.height || '',
+      rootOverflow: root?.style.overflow || '',
     }
-  }
+
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.margin = '0'
+    if (root) {
+      root.style.height = '100%'
+      root.style.overflow = 'hidden'
+    }
+
+    return () => {
+      vv?.removeEventListener('resize', sync)
+      vv?.removeEventListener('scroll', sync)
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('orientationchange', sync)
+      html.style.overflow = prev.htmlOverflow
+      body.style.overflow = prev.bodyOverflow
+      body.style.margin = prev.bodyMargin
+      if (root) {
+        root.style.height = prev.rootHeight
+        root.style.overflow = prev.rootOverflow
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const onPageShow = () => {
+      refreshBalance().catch(() => {})
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [refreshBalance])
 
   if (!user) return <Navigate to="/login" replace />
-  if (!canPlay) return <Navigate to="/" replace />
+  if (!canPlay) return <Navigate to="/" replace state={{ tab: 'games' }} />
 
   return (
-    <div className="flex h-svh flex-col bg-slate-950 text-white">
-      <header className="flex items-center gap-3 border-b border-white/10 px-3 py-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-white/15 px-3 py-1.5 text-sm hover:bg-white/5"
-        >
-          Back
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{gameName}</p>
-          {sessionId ? (
-            <p className="truncate font-mono text-xs text-slate-400">{sessionId}</p>
-          ) : null}
-        </div>
-      </header>
-
-      {blocked ? (
-        <div className="flex flex-1 items-center justify-center text-rose-300">{blocked}</div>
-      ) : (
-        <iframe
-          ref={iframeRef}
-          title={gameName}
-          src={iframeSrc}
-          className="h-full w-full flex-1 border-0 bg-black"
-          allow="autoplay; fullscreen; payment; clipboard-read; clipboard-write"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-          referrerPolicy="no-referrer-when-downgrade"
-          onLoad={onIframeLoad}
-        />
-      )}
+    <div
+      className="game-iframe-shell"
+      style={{ width: size.width, height: size.height }}
+    >
+      <iframe
+        title={gameName}
+        src={launchUrl}
+        className="game-iframe"
+        width={size.width}
+        height={size.height}
+        style={{ width: size.width, height: size.height }}
+        allow="autoplay; fullscreen; payment; clipboard-read; clipboard-write; accelerometer; gyroscope"
+        allowFullScreen
+        scrolling="yes"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
     </div>
   )
 }

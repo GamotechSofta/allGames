@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import { fetchGames, fetchHistory, launchGame } from '../api'
+import siteLogo from '../assets/image.png'
 
 /** Public CDN images (Unsplash / Wikimedia) for lobby art */
 const IMAGES = {
-  logo: 'https://images.unsplash.com/photo-1596838132731-330a250f1a9b?auto=format&fit=crop&w=200&q=80',
-  hero: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1400&q=80',
   teenpatti: 'https://images.unsplash.com/photo-1541278107931-e006523892df?auto=format&fit=crop&w=900&q=80',
   ludo: 'https://store-images.s-microsoft.com/image/apps.38011.13964317340864868.4c21ecf1-2804-40c6-bd9e-a2efd241f30b.7fb161ca-d8f2-4e3a-9f2b-4992fa436cd1?q=90&w=480&h=270',
-  wallet: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=700&q=80',
-  chips: 'https://images.unsplash.com/photo-1596838132734-330b0229d1b2?auto=format&fit=crop&w=700&q=80',
-  liveGames:
-    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQA8gnw7PDZ1OHYlFRV9SkY_Nf5FMYtxnC26f2c-GZ-T3mTBd0vN4beHNc&s=10',
   defaultGame: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80',
 }
 
@@ -89,19 +84,20 @@ function IconHistory() {
   )
 }
 
-function IconWallet() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H19a2 2 0 0 1 2 2v1H7.5A2.5 2.5 0 0 0 5 10.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5h-5.5a1.5 1.5 0 0 0 0 3H21" />
-    </svg>
-  )
-}
-
-function IconUser() {
+function IconProfile() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 19.5c1.5-3.2 4-4.5 7-4.5s5.5 1.3 7 4.5" />
+    </svg>
+  )
+}
+
+function IconLogout() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M10 7V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2" />
+      <path d="M15 12H3m0 0 3-3m-3 3 3 3" />
     </svg>
   )
 }
@@ -116,16 +112,53 @@ function IconCoin() {
   )
 }
 
+function IconMenu() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 7h18" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+      <path d="M5 12h14" stroke="url(#menuGlow)" strokeWidth="2.8" strokeLinecap="round" />
+      <path d="M3 17h18" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+      <defs>
+        <linearGradient id="menuGlow" x1="5" y1="12" x2="19" y2="12" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#ffe08a" />
+          <stop offset="1" stopColor="#39ff8a" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
+function IconClose() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  )
+}
+
 const NAV = [
   { id: 'lobby', label: 'Lobby', Icon: IconHome },
   { id: 'games', label: 'Games', Icon: IconGames },
   { id: 'history', label: 'History', Icon: IconHistory },
-  { id: 'wallet', label: 'Wallet', Icon: IconWallet },
+  { id: 'wallet', label: 'Profile', Icon: IconProfile },
 ]
 
 export default function Home() {
   const { user, loading, logout, refreshBalance } = useAuth()
-  const [tab, setTab] = useState('lobby')
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [tab, setTab] = useState(() => {
+    const fromState = location.state?.tab
+    const fromQuery = new URLSearchParams(window.location.search).get('tab')
+    const fromStore = sessionStorage.getItem('allgames_tab')
+    const allowed = ['lobby', 'games', 'history', 'wallet']
+    if (allowed.includes(fromState)) return fromState
+    if (allowed.includes(fromQuery)) return fromQuery
+    if (allowed.includes(fromStore)) return fromStore
+    return 'lobby'
+  })
+  const [menuOpen, setMenuOpen] = useState(false)
   const [games, setGames] = useState([])
   const [history, setHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -134,7 +167,37 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false)
   const userId = user?.id || user?.playerId
 
-  const recent = useMemo(() => history.slice(0, 4), [history])
+  useEffect(() => {
+    sessionStorage.setItem('allgames_tab', tab)
+  }, [tab])
+
+  useEffect(() => {
+    const fromState = location.state?.tab
+    const fromQuery = searchParams.get('tab')
+    const allowed = ['lobby', 'games', 'history', 'wallet']
+    if (allowed.includes(fromState)) {
+      setTab(fromState)
+      navigate(location.pathname, { replace: true, state: {} })
+      return
+    }
+    if (allowed.includes(fromQuery)) {
+      setTab(fromQuery)
+      const next = new URLSearchParams(searchParams)
+      next.delete('tab')
+      setSearchParams(next, { replace: true })
+    }
+  }, [location.state, location.pathname, searchParams, navigate, setSearchParams])
+
+  const moneyHistory = useMemo(
+    () =>
+      history.filter((row) => {
+        const kind = String(row.kind || '').toUpperCase()
+        return kind !== 'LAUNCH'
+      }),
+    [history],
+  )
+
+  const recent = useMemo(() => moneyHistory.slice(0, 4), [moneyHistory])
 
   useEffect(() => {
     if (!userId) return
@@ -182,6 +245,15 @@ export default function Home() {
     }
   }, [userId, refreshBalance])
 
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [menuOpen])
+
   if (loading) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-[var(--bg)]">
@@ -217,7 +289,21 @@ export default function Home() {
       const res = await launchGame(gameId)
       const url = res.launchUrl
       if (!url) throw new Error('Launch URL missing from response')
-      window.location.assign(url)
+      sessionStorage.setItem('allgames_tab', 'games')
+      setTab('games')
+      const playSession = {
+        launchUrl: url,
+        gameName: game.title || game.name || gameId,
+        sessionId: res.sessionId || '',
+        returnTab: 'games',
+      }
+      try {
+        sessionStorage.setItem('allgames_play_session', JSON.stringify(playSession))
+      } catch {
+        /* ignore */
+      }
+      navigate('/play', { state: playSession })
+      setLaunching('')
     } catch (err) {
       setError(err.message || 'Could not launch game')
       setLaunching('')
@@ -275,15 +361,36 @@ export default function Home() {
     )
   }
 
+  function selectTab(id) {
+    setError('')
+    setTab(id)
+    setMenuOpen(false)
+  }
+
   return (
-    <div className="dash text-[var(--text)]">
+    <div className={`dash text-[var(--text)] ${menuOpen ? 'menu-open' : ''}`}>
+      <button
+        type="button"
+        className="nav-backdrop"
+        aria-label="Close menu"
+        onClick={() => setMenuOpen(false)}
+      />
+
       <aside className="dash-sidebar">
         <div className="dash-brand">
-          <img src={IMAGES.logo} alt="" />
+          <img src={siteLogo} alt="AllGames" className="site-logo" />
           <div>
             <p className="dash-brand-title">ALLGAMES</p>
             <p className="text-xs font-semibold tracking-wide text-[var(--muted)]">Player Lobby</p>
           </div>
+          <button
+            type="button"
+            className="menu-close-btn"
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+          >
+            <IconClose />
+          </button>
         </div>
 
         <nav className="nav-list" aria-label="Main">
@@ -292,10 +399,7 @@ export default function Home() {
               key={id}
               type="button"
               className={`nav-item ${tab === id ? 'is-active' : ''}`}
-              onClick={() => {
-                setError('')
-                setTab(id)
-              }}
+              onClick={() => selectTab(id)}
             >
               <Icon />
               {label}
@@ -303,54 +407,70 @@ export default function Home() {
           ))}
         </nav>
 
-        <div className="sidebar-wallet">
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-            Your wallet
-          </p>
-          <p className="font-display mt-1 text-xl font-bold tracking-wide text-[var(--gold)]">
-            ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
-          </p>
-          <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
-            Points ready to play
-          </p>
+        <div className="sidebar-footer">
+          <div className="sidebar-wallet">
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+              Your wallet
+            </p>
+            <p className="font-display mt-1 text-xl font-bold tracking-wide text-[var(--gold)]">
+              ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
+              Points ready to play
+            </p>
+            <button
+              type="button"
+              className="btn-game btn-purple mt-3 w-full py-2 text-[0.62rem]"
+              onClick={() => selectTab('wallet')}
+            >
+              View Profile
+            </button>
+          </div>
           <button
             type="button"
-            className="btn-game btn-purple mt-3 w-full py-2 text-[0.62rem]"
-            onClick={() => setTab('wallet')}
+            className="btn-game btn-danger sidebar-logout w-full py-2.5 text-[0.65rem]"
+            onClick={() => {
+              setMenuOpen(false)
+              logout()
+            }}
           >
-            View Wallet
+            <IconLogout />
+            Logout
           </button>
         </div>
       </aside>
 
       <div className="dash-content">
-        <header className="dash-header">
-          <div>
-            <h1 className="font-display text-lg font-bold tracking-wide sm:text-xl">
-              WELCOME BACK,{' '}
-              <span className="text-[var(--gold)]">{String(user.username || 'PLAYER').toUpperCase()}</span>
-            </h1>
-            <p className="mt-0.5 text-sm font-semibold text-[var(--muted)]">
-              Player lobby · pick a table and play
-            </p>
+        <div className="mobile-topbar">
+          <div className="flex items-center gap-2 min-w-0">
+            <img src={siteLogo} alt="AllGames" className="site-logo site-logo-sm" />
+            <p className="dash-brand-title truncate">ALLGAMES</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="chip">
-              <span className="chip-icon">
-                <IconUser />
+          <div className="mobile-topbar-right">
+            <div className="chip chip-compact">
+              <span className="chip-icon gold">
+                <IconCoin />
               </span>
-              <div className="leading-tight">
-                <p className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
-                  Player ID
-                </p>
-                <p className="font-display text-[0.7rem] font-bold tracking-wider text-[var(--lime)]">
-                  {shortId(user.id || user.playerId)}
-                </p>
-              </div>
+              <p className="font-display text-sm font-bold tracking-wide text-[var(--gold)]">
+                ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
+              </p>
             </div>
+            <button
+              type="button"
+              className="hamburger-btn"
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <IconMenu />
+              <span>Menu</span>
+            </button>
+          </div>
+        </div>
 
-            <div className="chip">
+        <header className="dash-header">
+          <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+            <div className="chip header-wallet-chip">
               <span className="chip-icon gold">
                 <IconCoin />
               </span>
@@ -372,13 +492,6 @@ export default function Home() {
             >
               {refreshing ? '…' : 'Refresh'}
             </button>
-            <button
-              type="button"
-              onClick={logout}
-              className="btn-game btn-danger px-3.5 py-2.5 text-[0.62rem]"
-            >
-              Logout
-            </button>
           </div>
         </header>
 
@@ -390,25 +503,7 @@ export default function Home() {
               </p>
             ) : null}
 
-            {showLobby ? (
-              <>
-                <div className="hero-banner">
-                  <img src={IMAGES.hero} alt="" />
-                  <div className="hero-copy">
-                    <p className="font-display text-[0.65rem] font-bold tracking-[0.28em] text-[var(--lime)]">
-                      FEATURED
-                    </p>
-                    <h2 className="font-display mt-1 text-2xl font-extrabold tracking-[0.08em] sm:text-3xl">
-                      CASINO ARENA
-                    </h2>
-                    <p className="mt-2 max-w-md text-sm font-semibold text-white/75">
-                      Play Teen Patti, Ludo and more with your live wallet balance.
-                    </p>
-                  </div>
-                </div>
-                {renderGameCards()}
-              </>
-            ) : null}
+            {showLobby ? renderGameCards() : null}
 
             {showGamesOnly ? renderGameCards() : null}
 
@@ -417,7 +512,7 @@ export default function Home() {
                 <div className="mb-4">
                   <h2 className="font-display text-2xl font-bold tracking-[0.06em]">Game History</h2>
                   <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Launches, bets, and wins for your account
+                    Credits and debits for your account
                   </p>
                 </div>
                 <div className="history-panel">
@@ -425,17 +520,17 @@ export default function Home() {
                     <p className="px-5 py-12 text-center font-display text-sm tracking-[0.18em] text-[var(--muted)]">
                       LOADING HISTORY…
                     </p>
-                  ) : !history.length ? (
+                  ) : !moneyHistory.length ? (
                     <div className="px-5 py-14 text-center">
                       <p className="font-display text-sm tracking-[0.2em] text-[var(--muted)]">
-                        NO HISTORY YET
+                        NO TRANSACTIONS YET
                       </p>
                       <p className="mt-2 text-sm text-[var(--muted)]">
-                        Play a game and activity will appear here.
+                        Bets and wins will appear here after you play.
                       </p>
                     </div>
                   ) : (
-                    history.map((row) => {
+                    moneyHistory.map((row) => {
                       const signed =
                         row.kind === 'BET' || String(row.type || '').toUpperCase() === 'DEBIT'
                           ? -Math.abs(Number(row.amount) || 0)
@@ -484,45 +579,150 @@ export default function Home() {
             ) : null}
 
             {showWallet ? (
-              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="side-card !p-0 overflow-hidden">
-                  <img
-                    src={IMAGES.wallet}
-                    alt=""
-                    className="!mb-0 h-44 !rounded-none object-cover opacity-90"
-                  />
-                  <div className="p-5">
-                    <p className="font-display text-[0.65rem] font-bold tracking-[0.2em] text-[var(--gold)]">
-                      WALLET
-                    </p>
-                    <h2 className="font-display mt-1 text-3xl font-extrabold tracking-wide text-[var(--gold)]">
-                      ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
-                    </h2>
-                    <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
-                      Balance updates when you bet or win in games. Use Refresh after returning from a
-                      game.
-                    </p>
+              <div className="profile-page">
+                <div className="profile-hero">
+                  <div className="profile-hero-bg" />
+                  <div className="profile-hero-body">
+                    <img src={siteLogo} alt="" className="profile-avatar" />
+                    <div className="min-w-0">
+                      <p className="font-display text-[0.65rem] font-bold tracking-[0.22em] text-[var(--lime)]">
+                        PLAYER PROFILE
+                      </p>
+                      <h2 className="font-display mt-1 truncate text-2xl font-extrabold tracking-wide sm:text-3xl">
+                        {user.username || 'Player'}
+                      </h2>
+                      <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                        {user.phone ? `+91 ${user.phone}` : 'Phone not set'}
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={onRefresh}
-                      className="btn-game btn-purple mt-4 px-5 py-2.5 text-[0.65rem]"
+                      disabled={refreshing}
+                      className="btn-game btn-purple ml-auto px-4 py-2.5 text-[0.62rem]"
                     >
-                      Refresh Balance
+                      {refreshing ? '…' : 'Refresh'}
                     </button>
                   </div>
                 </div>
+
+                <div className="profile-stats">
+                  <div className="profile-stat">
+                    <span className="profile-stat-label">Wallet balance</span>
+                    <span className="profile-stat-value gold">
+                      ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="profile-stat">
+                    <span className="profile-stat-label">Games played</span>
+                    <span className="profile-stat-value">
+                      {history.filter((h) => h.kind === 'LAUNCH').length}
+                    </span>
+                  </div>
+                  <div className="profile-stat">
+                    <span className="profile-stat-label">Activity</span>
+                    <span className="profile-stat-value">{history.length}</span>
+                  </div>
+                </div>
+
+                <div className="profile-grid">
+                  <div className="side-card profile-details">
+                    <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--violet)]">
+                      ACCOUNT DETAILS
+                    </p>
+                    <dl className="profile-fields">
+                      <div>
+                        <dt>Display name</dt>
+                        <dd>{user.username || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>Phone</dt>
+                        <dd>{user.phone || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>Currency</dt>
+                        <dd>INR</dd>
+                      </div>
+                      <div>
+                        <dt>Status</dt>
+                        <dd className="text-[var(--lime)]">Active</dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <div className="side-card">
+                    <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--gold)]">
+                      QUICK ACTIONS
+                    </p>
+                    <div className="mt-4 flex flex-col gap-2.5">
+                      <button
+                        type="button"
+                        className="btn-game btn-play w-full py-2.5 text-[0.65rem]"
+                        onClick={() => selectTab('games')}
+                      >
+                        Play Games
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-game btn-purple w-full py-2.5 text-[0.65rem]"
+                        onClick={() => selectTab('history')}
+                      >
+                        View History
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-game btn-danger w-full py-2.5 text-[0.65rem]"
+                        onClick={logout}
+                      >
+                        <IconLogout />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="side-card">
-                  <img src={IMAGES.chips} alt="" />
-                  <p className="font-display text-sm font-bold tracking-wide">Player account</p>
-                  <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
-                    ID: {user.id || user.playerId}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Phone: {user.phone || '—'}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Name: {user.username}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--violet)]">
+                      RECENT ACTIVITY
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs font-bold text-[var(--lime)] hover:underline"
+                      onClick={() => selectTab('history')}
+                    >
+                      See all
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {recent.length ? (
+                      recent.slice(0, 3).map((row) => (
+                        <div
+                          key={`profile-${row.kind}-${row.id}`}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold">
+                              {row.kind} · {row.gameTitle || row.gameId || 'Game'}
+                            </p>
+                            <p className="text-xs text-[var(--muted)]">{formatWhen(row.createdAt)}</p>
+                          </div>
+                          {row.kind === 'BET' || row.kind === 'WIN' ? (
+                            <p
+                              className={`shrink-0 font-display text-sm font-bold ${
+                                row.kind === 'BET' ? 'text-[#fda4af]' : 'text-[var(--lime)]'
+                              }`}
+                            >
+                              {row.kind === 'BET' ? '−' : '+'}₹
+                              {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm font-semibold text-[var(--muted)]">No activity yet</p>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -530,32 +730,6 @@ export default function Home() {
 
           {showLobby ? (
             <aside className="space-y-3">
-              <div className="flex justify-end">
-                <span className="live-pill">
-                  <span className="live-dot" />
-                  {games.length} LIVE
-                </span>
-              </div>
-
-              <div className="side-card">
-                <img src={IMAGES.liveGames} alt="Live Games" />
-                <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--gold)]">
-                  LIVE GAMES
-                </p>
-                <p className="mt-1 text-sm font-bold">
-                  {games.length
-                    ? games.map((g) => g.title || g.name || g.gameId).join(' · ')
-                    : 'None yet'}
-                </p>
-                <button
-                  type="button"
-                  className="btn-game btn-play mt-3 w-full py-2.5 text-[0.62rem]"
-                  onClick={() => setTab('games')}
-                >
-                  Open Games
-                </button>
-              </div>
-
               <div className="side-card">
                 <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--violet)]">
                   RECENT ACTIVITY
@@ -602,7 +776,7 @@ export default function Home() {
                   className="btn-game btn-purple mt-3 w-full py-2.5 text-[0.62rem]"
                   onClick={() => setTab('wallet')}
                 >
-                  Details
+                  Open Profile
                 </button>
               </div>
             </aside>

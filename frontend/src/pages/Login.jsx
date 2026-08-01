@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
+import siteLogo from '../assets/image.png'
 
 export default function Login() {
   const { user, login } = useAuth()
@@ -29,15 +30,18 @@ export default function Login() {
   return (
     <div className="auth-shell">
       <form onSubmit={onSubmit} className="auth-panel space-y-5">
-        <div>
-          <p className="font-display text-[0.7rem] font-bold tracking-[0.35em] text-[var(--lime)]">
-            ALLGAMES
-          </p>
-          <h1 className="font-display mt-2 text-2xl font-bold tracking-wide">Player Login</h1>
-          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-            Enter the arena with your phone and password
-          </p>
+        <div className="flex items-center gap-3">
+          <img src={siteLogo} alt="AllGames" className="site-logo" />
+          <div>
+            <p className="font-display text-[0.7rem] font-bold tracking-[0.35em] text-[var(--lime)]">
+              ALLGAMES
+            </p>
+            <h1 className="font-display mt-1 text-2xl font-bold tracking-wide">Player Login</h1>
+          </div>
         </div>
+        <p className="text-sm font-semibold text-[var(--muted)]">
+          Enter the arena with your phone and password
+        </p>
 
         {error ? (
           <p className="rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2 text-sm font-semibold text-[#fecdd3]">
