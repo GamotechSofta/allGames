@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 
 export default function Login() {
@@ -35,9 +35,7 @@ export default function Login() {
         <div>
           <p className="text-sm font-medium tracking-wide text-emerald-400">AllGames</p>
           <h1 className="mt-1 text-2xl font-semibold text-white">Player login</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Use the phone and password given by admin
-          </p>
+          <p className="mt-1 text-sm text-slate-400">Sign in with your phone and password</p>
         </div>
 
         {error ? (
@@ -76,6 +74,13 @@ export default function Login() {
         >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <p className="text-center text-sm text-slate-400">
+          New here?{' '}
+          <Link to="/register" className="text-emerald-400 hover:underline">
+            Create account
+          </Link>
+        </p>
       </form>
     </div>
   )

@@ -36,6 +36,8 @@ async function request(url, { method = 'GET', body, token } = {}) {
 
 export const login = (payload) =>
   request(`${AUTH_BASE}/auth/login`, { method: 'POST', body: payload })
+export const register = (payload) =>
+  request(`${AUTH_BASE}/auth/register`, { method: 'POST', body: payload })
 export const fetchMe = () => request(`${AUTH_BASE}/auth/me`)
 export const fetchBalance = () => request(`${AUTH_BASE}/wallet/balance`)
 

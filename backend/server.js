@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import { authRequired, signToken } from './auth.js'
 import {
   connectDb,
+  createPlayer,
   findPlayerById,
   findPlayerByPhone,
   getWallet,
@@ -72,11 +73,41 @@ app.get('/api/health', (_req, res) => {
   res.json({ success: true, service: 'allgames-backend' })
 })
 
-app.post('/api/v1/auth/register', (_req, res) => {
-  return res.status(403).json({
-    success: false,
-    message: 'Public signup is disabled. Ask admin to create your account.',
-  })
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body?.phone)
+    const password = String(req.body?.password || '')
+    const username = String(req.body?.username || '').trim() || `Player${phone.slice(-4)}`
+    const startingBalance = Number(process.env.STARTING_BALANCE ?? 10000)
+
+    if (phone.length < 10 || password.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid 10-digit phone and password (min 4 chars) are required',
+      })
+    }
+
+    if (await findPlayerByPhone(phone)) {
+      return res.status(409).json({ success: false, message: 'Phone already registered' })
+    }
+
+    const player = await createPlayer({
+      phone,
+      username,
+      passwordHash: await bcrypt.hash(password, 10),
+      startingBalance: Number.isFinite(startingBalance) ? Math.max(0, startingBalance) : 10000,
+    })
+
+    const token = signToken(playerIdOf(player))
+    return res.status(201).json({
+      success: true,
+      message: 'Account created',
+      data: await playerPayload(player, token),
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ success: false, message: 'Registration failed' })
+  }
 })
 
 app.post('/api/v1/auth/login', async (req, res) => {
