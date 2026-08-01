@@ -10,6 +10,8 @@ import {
   findPlayerByPhone,
   getWallet,
 } from './store.js'
+import { GapWalletTransaction } from './models/gapWalletTransaction.model.js'
+import mongoose from 'mongoose'
 import { registerOperatorRoutes } from './operatorRoutes.js'
 import { validateGapEnv } from './validateEnv.js'
 import { ensureDefaultAdmin } from './middleware/adminAuth.js'
@@ -168,6 +170,56 @@ app.get('/api/v1/wallet/balance', authRequired, async (req, res) => {
   } catch (err) {
     console.error(err)
     return res.status(500).json({ success: false, message: 'Failed to load balance' })
+  }
+})
+
+/** Player JWT wallet history from credit/debit APIs */
+app.get('/api/v1/wallet/history', authRequired, async (req, res) => {
+  try {
+    const playerId = String(req.playerId || '')
+    if (!mongoose.Types.ObjectId.isValid(playerId)) {
+      return res.status(400).json({ success: false, message: 'Invalid player' })
+    }
+
+    const oid = new mongoose.Types.ObjectId(playerId)
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100)
+
+    const transactions = await GapWalletTransaction.find({
+      userId: oid,
+      type: { $in: ['DEBIT', 'CREDIT', 'debit', 'credit'] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+
+    const rows = transactions.map((t) => {
+      const type = String(t.type || '').toUpperCase()
+      return {
+        id: String(t._id),
+        kind: type,
+        type,
+        amount: Number(t.amount) || 0,
+        balanceAfter: Number(t.balanceAfter) || 0,
+        status: t.status || 'SUCCESS',
+        gameId: t.gameId || '',
+        gameTitle: t.gameId || 'Wallet',
+        roundId: t.roundId || '',
+        transactionId: t.transactionId,
+        rolledBack: Boolean(t.rolledBack),
+        createdAt: t.createdAt,
+      }
+    })
+
+    return res.json({
+      success: true,
+      data: {
+        transactions: rows,
+        feed: rows,
+      },
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ success: false, message: 'Failed to load wallet history' })
   }
 })
 

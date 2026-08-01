@@ -211,8 +211,8 @@ export default function Home() {
   const moneyHistory = useMemo(
     () =>
       history.filter((row) => {
-        const kind = String(row.kind || '').toUpperCase()
-        return kind !== 'LAUNCH'
+        const kind = String(row.kind || row.type || '').toUpperCase()
+        return kind === 'CREDIT' || kind === 'DEBIT' || kind === 'BET' || kind === 'WIN'
       }),
     [history],
   )
@@ -226,7 +226,7 @@ export default function Home() {
       .catch((err) => setError(err.message))
     refreshBalance().catch(() => {})
     fetchHistory(40)
-      .then((res) => setHistory(res.data?.feed || []))
+      .then((res) => setHistory(res.data?.transactions || res.data?.feed || []))
       .catch(() => {})
   }, [userId, refreshBalance])
 
@@ -236,7 +236,7 @@ export default function Home() {
     setHistoryLoading(true)
     fetchHistory(60)
       .then((res) => {
-        if (!cancelled) setHistory(res.data?.feed || [])
+        if (!cancelled) setHistory(res.data?.transactions || res.data?.feed || [])
       })
       .catch((err) => {
         if (!cancelled) setError(err.message || 'Failed to load history')
@@ -291,7 +291,7 @@ export default function Home() {
       await refreshBalance()
       const [gamesRes, historyRes] = await Promise.all([fetchGames(), fetchHistory(60)])
       setGames(gamesRes.data || [])
-      setHistory(historyRes.data?.feed || [])
+      setHistory(historyRes.data?.transactions || historyRes.data?.feed || [])
     } catch (err) {
       setError(err.message || 'Refresh failed')
     } finally {
@@ -533,7 +533,7 @@ export default function Home() {
                 <div className="mb-4">
                   <h2 className="font-display text-2xl font-bold tracking-[0.06em]">Game History</h2>
                   <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Credits and debits for your account
+                    Credit and debit transactions from your wallet
                   </p>
                 </div>
                 <div className="history-panel">
@@ -547,49 +547,47 @@ export default function Home() {
                         NO TRANSACTIONS YET
                       </p>
                       <p className="mt-2 text-sm text-[var(--muted)]">
-                        Bets and wins will appear here after you play.
+                        Debits and credits from play will show up here.
                       </p>
                     </div>
                   ) : (
                     moneyHistory.map((row) => {
-                      const signed =
-                        row.kind === 'BET' || String(row.type || '').toUpperCase() === 'DEBIT'
-                          ? -Math.abs(Number(row.amount) || 0)
-                          : row.kind === 'WIN' || String(row.type || '').toUpperCase() === 'CREDIT'
-                            ? Math.abs(Number(row.amount) || 0)
-                            : null
-                      const isMoney = signed !== null
+                      const type = String(row.type || row.kind || '').toUpperCase()
+                      const isDebit = type === 'DEBIT' || type === 'BET'
+                      const isCredit = type === 'CREDIT' || type === 'WIN'
+                      const label = isDebit ? 'DEBIT' : isCredit ? 'CREDIT' : type || 'TX'
+                      const amount = Math.abs(Number(row.amount) || 0)
                       return (
-                        <div key={`${row.kind}-${row.id}`} className="history-row">
-                          <span className={`history-badge ${badgeClass(row.kind)}`}>{row.kind}</span>
+                        <div key={`${label}-${row.id}`} className="history-row">
+                          <span className={`history-badge ${isDebit ? 'bet' : isCredit ? 'win' : 'tx'}`}>
+                            {label}
+                          </span>
                           <div className="min-w-0">
                             <p className="font-display truncate text-sm font-bold tracking-wide">
-                              {row.gameTitle || row.gameId || 'Game'}
+                              {row.gameTitle || row.gameId || 'Wallet'}
                             </p>
                             <p className="mt-0.5 truncate text-xs font-semibold text-[var(--muted)]">
-                              {row.kind === 'LAUNCH'
-                                ? `Session ${shortId(row.sessionId)}`
-                                : shortId(row.transactionId || row.roundId)}
+                              {shortId(row.transactionId || row.roundId)}
+                              {row.status ? ` · ${row.status}` : ''}
+                              {row.rolledBack ? ' · rolled back' : ''}
                             </p>
                           </div>
                           <div className="history-meta text-right">
-                            {isMoney ? (
-                              <p
-                                className={`font-display text-sm font-bold ${
-                                  signed < 0 ? 'text-[#fda4af]' : 'text-[var(--lime)]'
-                                }`}
-                              >
-                                {signed < 0 ? '−' : '+'}₹
-                                {Math.abs(signed).toLocaleString('en-IN')}
-                              </p>
-                            ) : (
-                              <p className="font-display text-xs font-bold tracking-wider text-[var(--muted)]">
-                                OPENED
-                              </p>
-                            )}
+                            <p
+                              className={`font-display text-sm font-bold ${
+                                isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'
+                              }`}
+                            >
+                              {isDebit ? '−' : '+'}₹{amount.toLocaleString('en-IN')}
+                            </p>
                             <p className="mt-0.5 text-xs text-[var(--muted)]">
                               {formatWhen(row.createdAt)}
                             </p>
+                            {typeof row.balanceAfter === 'number' ? (
+                              <p className="text-[0.65rem] text-[var(--muted)]">
+                                Bal ₹{Number(row.balanceAfter).toLocaleString('en-IN')}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       )
@@ -637,7 +635,7 @@ export default function Home() {
                   <div className="profile-stat">
                     <span className="profile-stat-label">Games played</span>
                     <span className="profile-stat-value">
-                      {history.filter((h) => h.kind === 'LAUNCH').length}
+                      {new Set(history.map((h) => h.gameId).filter(Boolean)).size}
                     </span>
                   </div>
                   <div className="profile-stat">
@@ -717,29 +715,31 @@ export default function Home() {
                   </div>
                   <div className="mt-3 space-y-2">
                     {recent.length ? (
-                      recent.slice(0, 3).map((row) => (
+                      recent.slice(0, 3).map((row) => {
+                        const type = String(row.type || row.kind || '').toUpperCase()
+                        const isDebit = type === 'DEBIT' || type === 'BET'
+                        return (
                         <div
                           key={`profile-${row.kind}-${row.id}`}
                           className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2.5"
                         >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold">
-                              {row.kind} · {row.gameTitle || row.gameId || 'Game'}
+                              {isDebit ? 'DEBIT' : 'CREDIT'} · {row.gameTitle || row.gameId || 'Wallet'}
                             </p>
                             <p className="text-xs text-[var(--muted)]">{formatWhen(row.createdAt)}</p>
                           </div>
-                          {row.kind === 'BET' || row.kind === 'WIN' ? (
-                            <p
-                              className={`shrink-0 font-display text-sm font-bold ${
-                                row.kind === 'BET' ? 'text-[#fda4af]' : 'text-[var(--lime)]'
-                              }`}
-                            >
-                              {row.kind === 'BET' ? '−' : '+'}₹
-                              {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
-                            </p>
-                          ) : null}
+                          <p
+                            className={`shrink-0 font-display text-sm font-bold ${
+                              isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'
+                            }`}
+                          >
+                            {isDebit ? '−' : '+'}₹
+                            {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
+                          </p>
                         </div>
-                      ))
+                        )
+                      })
                     ) : (
                       <p className="text-sm font-semibold text-[var(--muted)]">No activity yet</p>
                     )}
@@ -757,7 +757,15 @@ export default function Home() {
                 </p>
                 <div className="mt-3 space-y-2.5">
                   {recent.length ? (
-                    recent.map((row) => (
+                    recent.map((row) => {
+                      const type = String(row.type || row.kind || '').toUpperCase()
+                      const label =
+                        type === 'DEBIT' || type === 'BET'
+                          ? 'DEBIT'
+                          : type === 'CREDIT' || type === 'WIN'
+                            ? 'CREDIT'
+                            : type
+                      return (
                       <button
                         key={`side-${row.kind}-${row.id}`}
                         type="button"
@@ -765,13 +773,14 @@ export default function Home() {
                         onClick={() => setTab('history')}
                       >
                         <span className="truncate text-xs font-bold">
-                          {row.kind} · {row.gameTitle || row.gameId || 'Game'}
+                          {label} · {row.gameTitle || row.gameId || 'Wallet'}
                         </span>
                         <span className="shrink-0 text-[0.65rem] text-[var(--muted)]">
                           {formatWhen(row.createdAt)}
                         </span>
                       </button>
-                    ))
+                      )
+                    })
                   ) : (
                     <p className="text-xs font-semibold text-[var(--muted)]">No activity yet</p>
                   )}

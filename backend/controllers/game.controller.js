@@ -268,7 +268,7 @@ export async function launchGame(req, res) {
   }
 }
 
-/** GET /api/game/history — authenticated player game + wallet history */
+/** GET /api/game/history — credit/debit wallet history for the authenticated player */
 export async function playerGameHistory(req, res) {
   try {
     const playerId = String(req.playerId || '')
@@ -279,9 +279,14 @@ export async function playerGameHistory(req, res) {
     const oid = new mongoose.Types.ObjectId(playerId)
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100)
 
-    const [sessions, transactions, catalog] = await Promise.all([
-      GameSession.find({ userId: oid }).sort({ createdAt: -1 }).limit(limit).lean(),
-      GapWalletTransaction.find({ userId: oid }).sort({ createdAt: -1 }).limit(limit).lean(),
+    const [transactions, catalog] = await Promise.all([
+      GapWalletTransaction.find({
+        userId: oid,
+        type: { $in: ['DEBIT', 'CREDIT', 'debit', 'credit'] },
+      })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean(),
       Game.find({}).select('gameId title name provider').lean(),
     ])
 
@@ -289,27 +294,17 @@ export async function playerGameHistory(req, res) {
       catalog.map((g) => [g.gameId, g.title || g.name || g.gameId]),
     )
 
-    const sessionRows = sessions.map((s) => ({
-      id: String(s._id),
-      kind: 'LAUNCH',
-      gameId: s.gameId,
-      gameTitle: titleById[s.gameId] || s.gameId,
-      sessionId: s.sessionId,
-      provider: s.provider || 'GAP',
-      createdAt: s.createdAt,
-    }))
-
     const txRows = transactions.map((t) => {
       const type = String(t.type || '').toUpperCase()
       return {
         id: String(t._id),
-        kind: type === 'CREDIT' ? 'WIN' : type === 'DEBIT' ? 'BET' : type || 'TX',
+        kind: type === 'CREDIT' ? 'CREDIT' : type === 'DEBIT' ? 'DEBIT' : type || 'TX',
         type,
         amount: Number(t.amount) || 0,
         balanceAfter: Number(t.balanceAfter) || 0,
         status: t.status || 'SUCCESS',
         gameId: t.gameId || '',
-        gameTitle: t.gameId ? titleById[t.gameId] || t.gameId : '—',
+        gameTitle: t.gameId ? titleById[t.gameId] || t.gameId : 'Wallet',
         roundId: t.roundId || '',
         transactionId: t.transactionId,
         rolledBack: Boolean(t.rolledBack),
@@ -317,15 +312,10 @@ export async function playerGameHistory(req, res) {
       }
     })
 
-    const feed = [...sessionRows, ...txRows].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-
     return res.json({
       success: true,
       data: {
-        feed: feed.slice(0, limit),
-        sessions: sessionRows,
+        feed: txRows,
         transactions: txRows,
       },
     })
