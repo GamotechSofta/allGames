@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { Game } from '../models/game.model.js'
 import { GameSession } from '../models/gameSession.model.js'
+import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
 import { findPlayerById, getWallet } from '../store.js'
 import { gapRequest } from '../services/gap.service.js'
 import { buildLaunchUrl } from '../launch.js'
@@ -266,3 +267,71 @@ export async function launchGame(req, res) {
     })
   }
 }
+
+/** GET /api/game/history — authenticated player game + wallet history */
+export async function playerGameHistory(req, res) {
+  try {
+    const playerId = String(req.playerId || '')
+    if (!isValidObjectId(playerId)) {
+      return res.status(400).json({ success: false, message: 'Invalid player' })
+    }
+
+    const oid = new mongoose.Types.ObjectId(playerId)
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100)
+
+    const [sessions, transactions, catalog] = await Promise.all([
+      GameSession.find({ userId: oid }).sort({ createdAt: -1 }).limit(limit).lean(),
+      GapWalletTransaction.find({ userId: oid }).sort({ createdAt: -1 }).limit(limit).lean(),
+      Game.find({}).select('gameId title name provider').lean(),
+    ])
+
+    const titleById = Object.fromEntries(
+      catalog.map((g) => [g.gameId, g.title || g.name || g.gameId]),
+    )
+
+    const sessionRows = sessions.map((s) => ({
+      id: String(s._id),
+      kind: 'LAUNCH',
+      gameId: s.gameId,
+      gameTitle: titleById[s.gameId] || s.gameId,
+      sessionId: s.sessionId,
+      provider: s.provider || 'GAP',
+      createdAt: s.createdAt,
+    }))
+
+    const txRows = transactions.map((t) => {
+      const type = String(t.type || '').toUpperCase()
+      return {
+        id: String(t._id),
+        kind: type === 'CREDIT' ? 'WIN' : type === 'DEBIT' ? 'BET' : type || 'TX',
+        type,
+        amount: Number(t.amount) || 0,
+        balanceAfter: Number(t.balanceAfter) || 0,
+        status: t.status || 'SUCCESS',
+        gameId: t.gameId || '',
+        gameTitle: t.gameId ? titleById[t.gameId] || t.gameId : '—',
+        roundId: t.roundId || '',
+        transactionId: t.transactionId,
+        rolledBack: Boolean(t.rolledBack),
+        createdAt: t.createdAt,
+      }
+    })
+
+    const feed = [...sessionRows, ...txRows].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+
+    return res.json({
+      success: true,
+      data: {
+        feed: feed.slice(0, limit),
+        sessions: sessionRows,
+        transactions: txRows,
+      },
+    })
+  } catch (error) {
+    console.error('[GAME] history error', error)
+    return res.status(500).json({ success: false, message: 'Failed to load history' })
+  }
+}
+

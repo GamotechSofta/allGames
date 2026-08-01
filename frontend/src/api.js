@@ -44,6 +44,9 @@ export const fetchBalance = () => request(`${AUTH_BASE}/wallet/balance`)
 export const fetchGames = () =>
   request(`${API_ROOT}/api/game/list?fields=home&limit=24`)
 
+export const fetchHistory = (limit = 50) =>
+  request(`${API_ROOT}/api/game/history?limit=${limit}`)
+
 export function extractLaunchUrl(res) {
   return (
     res?.launchUrl ||

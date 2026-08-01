@@ -28,68 +28,73 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-[radial-gradient(ellipse_at_top,#1e293b,#0f172a)] px-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-md space-y-5 rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur"
-      >
+    <div className="auth-shell">
+      <form onSubmit={onSubmit} className="auth-panel space-y-5">
         <div>
-          <p className="text-sm font-medium tracking-wide text-emerald-400">AllGames</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Create player</h1>
-          <p className="mt-1 text-sm text-slate-400">Get a wallet and start playing</p>
+          <p className="font-display text-[0.7rem] font-bold tracking-[0.35em] text-[var(--lime)]">
+            ALLGAMES
+          </p>
+          <h1 className="font-display mt-2 text-2xl font-bold tracking-wide">Create Account</h1>
+          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+            Join with 10,000 starting points
+          </p>
         </div>
 
         {error ? (
-          <p className="rounded-lg bg-rose-500/15 px-3 py-2 text-sm text-rose-300">{error}</p>
+          <p className="rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2 text-sm font-semibold text-[#fecdd3]">
+            {error}
+          </p>
         ) : null}
 
         <label className="block space-y-1.5">
-          <span className="text-sm text-slate-300">Display name</span>
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted)]">
+            Display name
+          </span>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-white outline-none ring-emerald-500/40 focus:ring-2"
+            className="auth-input"
             placeholder="Optional"
           />
         </label>
 
         <label className="block space-y-1.5">
-          <span className="text-sm text-slate-300">Phone</span>
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted)]">
+            Phone
+          </span>
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             inputMode="numeric"
             maxLength={10}
             required
-            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-white outline-none ring-emerald-500/40 focus:ring-2"
+            className="auth-input"
             placeholder="10-digit phone"
           />
         </label>
 
         <label className="block space-y-1.5">
-          <span className="text-sm text-slate-300">Password</span>
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted)]">
+            Password
+          </span>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={4}
-            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-white outline-none ring-emerald-500/40 focus:ring-2"
+            className="auth-input"
             placeholder="Min 4 characters"
           />
         </label>
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-xl bg-emerald-500 py-2.5 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
-        >
-          {busy ? 'Creating…' : 'Create account'}
+        <button type="submit" disabled={busy} className="btn-game btn-play w-full py-3 text-sm">
+          {busy ? 'Creating…' : 'Create & Play'}
         </button>
 
-        <p className="text-center text-sm text-slate-400">
+        <p className="text-center text-sm font-semibold text-[var(--muted)]">
           Already have an account?{' '}
-          <Link to="/login" className="text-emerald-400 hover:underline">
+          <Link to="/login" className="text-[var(--lime)] hover:underline">
             Sign in
           </Link>
         </p>
