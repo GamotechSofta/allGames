@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 
 const PLAY_KEY = 'allgames_play_session'
+const TAB_KEY = 'allgames_tab'
 
 const SESSION_EXPIRED_RE =
   /login|session[_-]?expired|token[_-]?expired|unauthorized|\/401\b/i
@@ -30,6 +31,14 @@ function readPlaySession(locationState) {
   }
 }
 
+function clearPlaySession() {
+  try {
+    sessionStorage.removeItem(PLAY_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 function viewportSize() {
   const vv = window.visualViewport
   return {
@@ -42,6 +51,8 @@ export default function GamePlay() {
   const { user, logout, refreshBalance } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const iframeRef = useRef(null)
+  const exitingRef = useRef(false)
   const [session] = useState(() => readPlaySession(location.state))
   const [size, setSize] = useState(() => viewportSize())
 
@@ -50,12 +61,22 @@ export default function GamePlay() {
   const returnTab = session?.returnTab || 'games'
   const canPlay = Boolean(user && launchUrl)
 
-  const forceRelogin = useCallback(() => {
+  const exitToGames = useCallback(() => {
+    if (exitingRef.current) return
+    exitingRef.current = true
+    clearPlaySession()
     try {
-      sessionStorage.removeItem(PLAY_KEY)
+      sessionStorage.setItem(TAB_KEY, returnTab)
     } catch {
       /* ignore */
     }
+    refreshBalance().catch(() => {})
+    // Replace play route so Back won't reopen a dead play screen
+    navigate('/', { replace: true, state: { tab: returnTab } })
+  }, [navigate, refreshBalance, returnTab])
+
+  const forceRelogin = useCallback(() => {
+    clearPlaySession()
     logout()
     navigate('/login', { replace: true, state: { reason: 'session_expired' } })
   }, [logout, navigate])
@@ -66,8 +87,59 @@ export default function GamePlay() {
   }, [launchUrl, forceRelogin])
 
   useEffect(() => {
-    sessionStorage.setItem('allgames_tab', returnTab)
+    try {
+      sessionStorage.setItem(TAB_KEY, returnTab)
+    } catch {
+      /* ignore */
+    }
   }, [returnTab])
+
+  /*
+   * Iframe navigations steal browser Back (joint session history).
+   * Push a parent history guard after every iframe load so the next Back
+   * hits our popstate handler and returns to the Games dashboard.
+   */
+  useEffect(() => {
+    if (!canPlay) return undefined
+
+    const pushGuard = () => {
+      try {
+        window.history.pushState({ allgamesPlayGuard: Date.now() }, '', '/play')
+      } catch {
+        /* ignore */
+      }
+    }
+
+    pushGuard()
+
+    const onPopState = () => {
+      exitToGames()
+    }
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        exitToGames()
+      }
+    }
+
+    window.addEventListener('popstate', onPopState)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [canPlay, exitToGames])
+
+  function onIframeLoad() {
+    // Re-arm guard above any iframe-internal navigations
+    try {
+      window.history.pushState({ allgamesPlayGuard: Date.now() }, '', '/play')
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
     const sync = () => setSize(viewportSize())
@@ -113,14 +185,6 @@ export default function GamePlay() {
     }
   }, [])
 
-  useEffect(() => {
-    const onPageShow = () => {
-      refreshBalance().catch(() => {})
-    }
-    window.addEventListener('pageshow', onPageShow)
-    return () => window.removeEventListener('pageshow', onPageShow)
-  }, [refreshBalance])
-
   if (!user) return <Navigate to="/login" replace />
   if (!canPlay) return <Navigate to="/" replace state={{ tab: 'games' }} />
 
@@ -129,17 +193,29 @@ export default function GamePlay() {
       className="game-iframe-shell"
       style={{ width: size.width, height: size.height }}
     >
+      <button
+        type="button"
+        className="game-exit-btn"
+        aria-label="Back to games"
+        title="Back to games (Esc)"
+        onClick={exitToGames}
+      >
+        ×
+      </button>
+
       <iframe
+        ref={iframeRef}
         title={gameName}
         src={launchUrl}
         className="game-iframe"
         width={size.width}
         height={size.height}
         style={{ width: size.width, height: size.height }}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock"
         allow="autoplay; fullscreen; payment; clipboard-read; clipboard-write; accelerometer; gyroscope"
         allowFullScreen
-        scrolling="yes"
         referrerPolicy="no-referrer-when-downgrade"
+        onLoad={onIframeLoad}
       />
     </div>
   )

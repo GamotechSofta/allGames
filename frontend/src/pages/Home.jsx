@@ -171,6 +171,26 @@ export default function Home() {
     sessionStorage.setItem('allgames_tab', tab)
   }, [tab])
 
+  // Restore Games tab when returning from play / external returnUrl
+  useEffect(() => {
+    const applyReturnTab = () => {
+      const fromQuery = new URLSearchParams(window.location.search).get('tab')
+      const fromStore = sessionStorage.getItem('allgames_tab')
+      if (fromQuery === 'games' || fromStore === 'games') {
+        setTab('games')
+      }
+      refreshBalance().catch(() => {})
+    }
+
+    applyReturnTab()
+    window.addEventListener('pageshow', applyReturnTab)
+    window.addEventListener('focus', applyReturnTab)
+    return () => {
+      window.removeEventListener('pageshow', applyReturnTab)
+      window.removeEventListener('focus', applyReturnTab)
+    }
+  }, [refreshBalance])
+
   useEffect(() => {
     const fromState = location.state?.tab
     const fromQuery = searchParams.get('tab')
@@ -302,6 +322,7 @@ export default function Home() {
       } catch {
         /* ignore */
       }
+      // Keep Games as the previous history entry so Back lands on Games dashboard
       navigate('/play', { state: playSession })
       setLaunching('')
     } catch (err) {
