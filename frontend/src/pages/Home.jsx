@@ -311,18 +311,20 @@ export default function Home() {
       if (!url) throw new Error('Launch URL missing from response')
       sessionStorage.setItem('allgames_tab', 'games')
       setTab('games')
+
       const playSession = {
         launchUrl: url,
         gameName: game.title || game.name || gameId,
         sessionId: res.sessionId || '',
         returnTab: 'games',
+        openMode: 'iframe',
+        provider: res.provider || game.provider || '',
       }
       try {
         sessionStorage.setItem('allgames_play_session', JSON.stringify(playSession))
       } catch {
         /* ignore */
       }
-      // Keep Games as the previous history entry so Back lands on Games dashboard
       navigate('/play', { state: playSession })
       setLaunching('')
     } catch (err) {

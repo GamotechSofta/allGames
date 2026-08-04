@@ -36,6 +36,10 @@ export const adminLogin = (username, password) =>
 export const listGames = () => api('/admin/game/list')
 export const addGame = (payload) => api('/admin/game/add', { method: 'POST', body: payload })
 export const toggleGame = (payload) => api('/admin/game/toggle', { method: 'PUT', body: payload })
+export const updateGameLaunchUrl = (payload) =>
+  api('/admin/game/launch-url', { method: 'PUT', body: payload })
+export const deleteGame = (payload) =>
+  api('/admin/game/delete', { method: 'DELETE', body: payload })
 
 export const listPlayers = () => api('/admin/player/list')
 export const addPlayer = (payload) =>

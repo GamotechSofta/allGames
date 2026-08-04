@@ -15,6 +15,8 @@ function readPlaySession(locationState) {
       gameName: locationState.gameName || 'Game',
       sessionId: locationState.sessionId || '',
       returnTab: locationState.returnTab || 'games',
+      openMode: locationState.openMode || 'iframe',
+      provider: locationState.provider || '',
     }
     try {
       sessionStorage.setItem(PLAY_KEY, JSON.stringify(session))
@@ -193,16 +195,6 @@ export default function GamePlay() {
       className="game-iframe-shell"
       style={{ width: size.width, height: size.height }}
     >
-      <button
-        type="button"
-        className="game-exit-btn"
-        aria-label="Back to games"
-        title="Back to games (Esc)"
-        onClick={exitToGames}
-      >
-        ×
-      </button>
-
       <iframe
         ref={iframeRef}
         title={gameName}

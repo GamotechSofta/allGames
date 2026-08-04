@@ -3,9 +3,6 @@ import { Game } from '../models/game.model.js'
 import { GameSession } from '../models/gameSession.model.js'
 import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
 import { findPlayerById, getWallet } from '../store.js'
-import { gapRequest } from '../services/gap.service.js'
-import { buildLaunchUrl } from '../launch.js'
-import { isDirectLaunchGame } from '../seedDirectGames.js'
 import { auditLog } from '../utils/logger.js'
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ''))
@@ -27,10 +24,63 @@ function auditLaunch(req, status, meta = {}) {
   })
 }
 
+function normalizeLaunchUrl(value) {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('invalid protocol')
+    }
+    return url
+  } catch {
+    return null
+  }
+}
+
+function joinLaunchBase(base, params) {
+  const url = new URL(base)
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    url.searchParams.set(key, String(value))
+  }
+  return url.toString()
+}
+
+function isPrivateReturnUrl(value) {
+  try {
+    const host = new URL(String(value || '')).hostname.toLowerCase()
+    if (!host || host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true
+    if (/^10\.\d+\.\d+\.\d+$/.test(host)) return true
+    if (/^192\.168\.\d+\.\d+$/.test(host)) return true
+    if (/^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(host)) return true
+    return false
+  } catch {
+    return true
+  }
+}
+
+/** Prefer client returnUrl; never fall back to a private FRONTEND_URL (Chrome PNA). */
+function resolveReturnUrl(raw) {
+  const fromBody = String(raw || '').trim()
+  if (fromBody && !isPrivateReturnUrl(fromBody)) return fromBody
+  const fromEnv = String(process.env.FRONTEND_URL || '').trim()
+  if (fromEnv && !isPrivateReturnUrl(fromEnv)) return fromEnv
+  return ''
+}
+
+
+/** Hosts / providers that refuse iframe embedding (must open top-level). */
+function resolveOpenMode(_launchUrl, _provider) {
+  // Always embed in the player /play iframe (same tab)
+  return 'iframe'
+}
+
+
 /** POST /api/admin/game/add */
 export async function addGame(req, res) {
   try {
-    const { name, gameId, provider, status, image, title } = req.body || {}
+    const { name, gameId, provider, status, image, title, launchUrl } = req.body || {}
     if (!name || !gameId || !provider) {
       return res.status(400).json({
         success: false,
@@ -38,22 +88,45 @@ export async function addGame(req, res) {
       })
     }
 
-    const existing = await Game.findOne({ gameId: String(gameId).trim() }).lean()
-    if (existing) {
-      return res.status(409).json({ success: false, message: 'gameId already exists' })
+    const normalizedLaunch = normalizeLaunchUrl(launchUrl)
+    if (!normalizedLaunch) {
+      return res.status(400).json({
+        success: false,
+        message: 'launchUrl is required (valid http(s) URL from admin panel)',
+      })
     }
 
-    const game = await Game.create({
+    const catalogGameId = String(gameId).trim()
+    const payload = {
       name: String(name).trim(),
       title: String(title || name).trim(),
-      gameId: String(gameId).trim(),
+      gameId: catalogGameId,
       provider: String(provider).trim(),
       image: image ? String(image).trim() : '',
+      launchUrl: normalizedLaunch || '',
       status: status === 'inactive' ? 'inactive' : 'active',
       isActive: status !== 'inactive',
-    })
+    }
 
-    return res.status(201).json({ success: true, data: game })
+    const existing = await Game.findOne({ gameId: catalogGameId })
+    if (existing) {
+      existing.name = payload.name
+      existing.title = payload.title
+      existing.provider = payload.provider
+      existing.image = payload.image || existing.image
+      existing.launchUrl = payload.launchUrl
+      existing.status = payload.status
+      existing.isActive = payload.isActive
+      await existing.save()
+      return res.json({
+        success: true,
+        data: existing,
+        message: 'Game updated (gameId already existed)',
+      })
+    }
+
+    const game = await Game.create(payload)
+    return res.status(201).json({ success: true, data: game, message: 'Game added' })
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -103,6 +176,62 @@ export async function toggleGame(req, res) {
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to toggle game status',
+    })
+  }
+}
+
+/** PUT /api/admin/game/launch-url — update catalog launch base URL */
+export async function updateGameLaunchUrl(req, res) {
+  try {
+    const { id, gameId, launchUrl } = req.body || {}
+    if (!id && !gameId) {
+      return res.status(400).json({ success: false, message: 'id or gameId is required' })
+    }
+
+    const normalizedLaunch = normalizeLaunchUrl(launchUrl)
+    if (launchUrl != null && String(launchUrl).trim() !== '' && normalizedLaunch === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'launchUrl must be a valid http(s) URL',
+      })
+    }
+
+    const query = id ? { _id: id } : { gameId: String(gameId).trim() }
+    const game = await Game.findOne(query)
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Game not found' })
+    }
+
+    game.launchUrl = normalizedLaunch || ''
+    await game.save()
+    return res.json({ success: true, data: game })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update launch URL',
+    })
+  }
+}
+
+/** DELETE /api/admin/game/delete */
+export async function deleteGame(req, res) {
+  try {
+    const { id, gameId } = req.body || {}
+    if (!id && !gameId) {
+      return res.status(400).json({ success: false, message: 'id or gameId is required' })
+    }
+
+    const query = id ? { _id: id } : { gameId: String(gameId).trim() }
+    const game = await Game.findOneAndDelete(query)
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Game not found' })
+    }
+
+    return res.json({ success: true, data: game, message: 'Game deleted' })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete game',
     })
   }
 }
@@ -190,61 +319,70 @@ export async function launchGame(req, res) {
 
     const playerId = playerIdOf(user)
     const balance = Number(wallet.balance || 0)
-    let gapResponse = null
-    let launchUrl = ''
-    let sessionId = ''
+    const catalogLaunchBase = String(game.launchUrl || '').trim()
+    const returnUrl = resolveReturnUrl(req.body?.returnUrl)
 
-    if (isDirectLaunchGame(catalogGameId, game.provider)) {
-      const token = req.token
-      if (!token) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication token required for direct game launch',
-        })
-      }
-      launchUrl = buildLaunchUrl(catalogGameId, {
-        playerId,
-        token,
-        balance,
-        username: user.username,
-        phone: user.phone,
-        returnUrl: req.body?.returnUrl || process.env.FRONTEND_URL || '',
+    if (!catalogLaunchBase) {
+      auditLaunch(req, 'FAILED', {
+        responseSummary: { message: 'Launch URL not configured' },
       })
-      sessionId = `direct_${catalogGameId}_${Date.now()}`
-    } else {
-      const payload = {
-        operatorId: process.env.OPERATOR_ID,
-        userId: playerId,
-        balance,
-        gameId: catalogGameId,
-        playerName: user.username || user.phone || playerId,
-        currency: user.currency || 'INR',
-        language: 'en',
-      }
-
-      try {
-        gapResponse = await gapRequest('/launch-game', payload)
-        launchUrl = gapResponse?.launchUrl || gapResponse?.data?.launchUrl || ''
-        sessionId = gapResponse?.sessionId || gapResponse?.data?.sessionId || ''
-      } catch (providerErr) {
-        console.warn('[GAME] GAP launch failed, using mock launch URL:', providerErr.message)
-      }
-
-      if (!launchUrl) {
-        sessionId =
-          sessionId || `mock_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-        const base = process.env.GAP_BASE_URL || 'https://provider-game-url.com'
-        launchUrl = `${base.replace(/\/$/, '')}/session/${sessionId}?gameId=${encodeURIComponent(catalogGameId)}&userId=${encodeURIComponent(playerId)}`
-      }
+      return res.status(400).json({
+        success: false,
+        message:
+          'This game has no Launch URL. Open Admin → Games, set Launch URL, and Save URL.',
+      })
     }
+
+    const token = req.token
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token required for game launch',
+      })
+    }
+
+    const sessionId = `direct_${catalogGameId}_${Date.now()}`
+    const operatorId = process.env.APP_OPERATOR_ID || '1'
+    const operatorBaseUrl = String(process.env.OPERATOR_PUBLIC_BASE_URL || '')
+      .trim()
+      .replace(/\/$/, '')
+    const bal = String(balance ?? 0)
+    // Admin Launch URL + platform params.
+    // Include PotLudo/operator aliases (id, game_id) so fashionbuddies can start a session.
+    const launchUrl = joinLaunchBase(catalogLaunchBase, {
+      userId: playerId,
+      gameId: catalogGameId,
+      game_id: catalogGameId,
+      sessionId,
+      token,
+      id: token,
+      returnUrl,
+      balance: bal,
+      available_balance: bal,
+      wallet: bal,
+      real_wallet: bal,
+      username: user.username || user.phone || playerId,
+      operatorId,
+      operator_id: operatorId,
+      // So games that honor a runtime operator URL can reach this backend
+      ...(operatorBaseUrl
+        ? {
+            operatorBaseUrl,
+            operator_base_url: operatorBaseUrl,
+            APP_OPERATOR_BASE_URL: operatorBaseUrl,
+            apiUrl: operatorBaseUrl,
+            baseUrl: operatorBaseUrl,
+          }
+        : {}),
+    })
 
     await GameSession.create({
       userId: user._id,
       gameId: catalogGameId,
       sessionId: String(sessionId),
       launchUrl: String(launchUrl),
-      provider: game.provider || 'GAP',
-      rawResponse: gapResponse,
+      provider: game.provider || '',
+      rawResponse: null,
     })
 
     auditLaunch(req, 'SUCCESS', {
@@ -255,7 +393,8 @@ export async function launchGame(req, res) {
       success: true,
       launchUrl,
       sessionId,
-      provider: game.provider || 'GAP',
+      provider: game.provider || '',
+      openMode: resolveOpenMode(launchUrl, game.provider),
       message: 'Game launch successful',
     })
   } catch (error) {

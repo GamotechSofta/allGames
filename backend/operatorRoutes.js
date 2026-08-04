@@ -18,6 +18,12 @@ function readToken(req) {
   if (headerToken) return String(headerToken).trim()
   const auth = req.headers.authorization || ''
   if (auth.startsWith('Bearer ')) return auth.slice(7).trim()
+  // PotLudo / browser clients sometimes pass token in query
+  const q = req.query || {}
+  const fromQuery = q.token || q.id || q.Authorization || q.authorization
+  if (fromQuery) return String(fromQuery).trim()
+  const body = req.body || {}
+  if (body.token || body.id) return String(body.token || body.id).trim()
   return ''
 }
 
@@ -51,22 +57,44 @@ async function buildUserDetail(playerId) {
     throw err
   }
   const wallet = await getWallet(playerIdOf(player))
+  const balance = Number(wallet.balance || 0)
   return {
     status: true,
+    success: true,
     msg: 'ok',
+    message: 'ok',
+    // Root-level aliases (some PotLudo builds read these)
+    balance,
+    available_balance: balance,
+    wallet: balance,
+    real_wallet: balance,
+    currency: 'INR',
     user: {
       user_id: playerIdOf(player),
       userId: playerIdOf(player),
       id: playerIdOf(player),
       username: player.username,
       display_name: player.username,
-      balance: wallet.balance,
-      available_balance: wallet.balance,
+      balance,
+      available_balance: balance,
+      wallet: balance,
+      real_wallet: balance,
       currency: 'INR',
       operator_id: operatorId(),
       operatorId: operatorId(),
     },
   }
+}
+
+function operatorCors(req, res, next) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, token, Token, X-Requested-With',
+  )
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
 }
 
 async function userDetailHandler(req, res) {
@@ -83,6 +111,7 @@ async function userDetailHandler(req, res) {
       message: err.message,
       errorMessage: err.message,
       msg: err.message,
+      balance: 0,
     })
   }
 }
@@ -122,14 +151,41 @@ async function balanceV2Handler(req, res) {
 }
 
 /**
+ * Some PotLudo builds call this on the operator base URL with { id, gameId }.
+ */
+async function operatorSessionHandler(req, res) {
+  try {
+    const token = readToken(req) || String(req.body?.id || '').trim()
+    const playerId = verifyPlayerToken(token)
+    const detail = await buildUserDetail(playerId)
+    return res.json({
+      ...detail,
+      token,
+      gameId: req.body?.gameId || req.body?.game_id || '',
+    })
+  } catch (err) {
+    const status = err.status || 401
+    return res.status(status).json({
+      status: false,
+      success: false,
+      message: err.message,
+      msg: err.message,
+      balance: 0,
+    })
+  }
+}
+
+/**
  * PotLudo (fashionbuddies) operator gateway contract.
- * Set PotLudo APP_OPERATOR_BASE_URL to this backend's public URL.
+ * PotLudo APP_OPERATOR_BASE_URL must point at this backend's *public* URL
+ * (not 127.0.0.1 — their servers cannot reach localhost).
  */
 export function registerOperatorRoutes(app) {
   app.use((req, res, next) => {
     if (
       req.path.includes('/service/user/detail') ||
-      req.path.includes('/service/operator/user/balance')
+      req.path.includes('/service/operator/user/balance') ||
+      req.path.includes('/identity/operator/session')
     ) {
       console.log(
         '[OPERATOR]',
@@ -142,12 +198,39 @@ export function registerOperatorRoutes(app) {
     next()
   })
 
-  app.get('/service/user/detail', userDetailHandler)
-  app.get('/operator/service/user/detail', userDetailHandler)
-  app.post('/service/operator/user/balance/v2', balanceV2Handler)
-  app.post('/operator/service/operator/user/balance/v2', balanceV2Handler)
+  const detailPaths = [
+    '/service/user/detail',
+    '/operator/service/user/detail',
+    '/api/service/user/detail',
+    '/api/v1/service/user/detail',
+  ]
+  for (const p of detailPaths) {
+    app.options(p, operatorCors)
+    app.get(p, operatorCors, userDetailHandler)
+    app.post(p, operatorCors, userDetailHandler)
+  }
 
-  // Operator credit helper — do NOT mount on /api/wallet/* (reserved for GAP callbacks)
+  const balancePaths = [
+    '/service/operator/user/balance/v2',
+    '/operator/service/operator/user/balance/v2',
+    '/api/service/operator/user/balance/v2',
+    '/api/v1/service/operator/user/balance/v2',
+  ]
+  for (const p of balancePaths) {
+    app.options(p, operatorCors)
+    app.post(p, operatorCors, balanceV2Handler)
+  }
+
+  const sessionPaths = [
+    '/api/v1/identity/operator/session',
+    '/identity/operator/session',
+    '/api/identity/operator/session',
+  ]
+  for (const p of sessionPaths) {
+    app.options(p, operatorCors)
+    app.post(p, operatorCors, operatorSessionHandler)
+  }
+
   async function operatorCreditHandler(req, res) {
     try {
       let playerId = req.body?.user_id || req.body?.userId || req.body?.playerId
@@ -168,6 +251,6 @@ export function registerOperatorRoutes(app) {
     }
   }
 
-  app.post('/service/operator/wallet/credit', operatorCreditHandler)
-  app.post('/operator/service/operator/wallet/credit', operatorCreditHandler)
+  app.post('/service/operator/wallet/credit', operatorCors, operatorCreditHandler)
+  app.post('/operator/service/operator/wallet/credit', operatorCors, operatorCreditHandler)
 }

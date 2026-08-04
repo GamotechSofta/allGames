@@ -13,6 +13,8 @@ const gameSchema = new mongoose.Schema(
     },
     title: { type: String, default: '', trim: true },
     image: { type: String, default: '', trim: true },
+    /** Base URL for platform launch (query params appended at launch time). */
+    launchUrl: { type: String, default: '', trim: true },
     isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true },

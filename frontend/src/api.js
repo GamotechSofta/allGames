@@ -63,13 +63,29 @@ export function extractLaunchUrl(res) {
 export async function launchGame(gameId) {
   const user = getStoredUser()
   if (!user?.id && !user?.playerId) throw new Error('Not logged in')
-  const returnUrl = `${window.location.origin}/?tab=games`
+
+  // Never send localhost returnUrl to public game hosts (Chrome PNA block)
+  let returnUrl = ''
+  try {
+    const host = window.location.hostname.toLowerCase()
+    const isPrivate =
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '[::1]' ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    if (!isPrivate) returnUrl = `${window.location.origin}/?tab=games`
+  } catch {
+    /* ignore */
+  }
+
   const res = await request(`${API_ROOT}/api/game/launch`, {
     method: 'POST',
     body: {
       userId: user.id || user.playerId,
       gameId,
-      returnUrl,
+      ...(returnUrl ? { returnUrl } : {}),
     },
   })
   const launchUrl = extractLaunchUrl(res)

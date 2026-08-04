@@ -13,9 +13,7 @@ import {
 import { GapWalletTransaction } from './models/gapWalletTransaction.model.js'
 import mongoose from 'mongoose'
 import { registerOperatorRoutes } from './operatorRoutes.js'
-import { validateGapEnv } from './validateEnv.js'
 import { ensureDefaultAdmin } from './middleware/adminAuth.js'
-import { seedDirectGames } from './seedDirectGames.js'
 import adminRoutes from './routes/admin.routes.js'
 import gameRoutes from './routes/game.routes.js'
 import walletRoutes from './routes/wallet.routes.js'
@@ -231,10 +229,8 @@ app.use('/api/wallet', walletRoutes)
 app.use('/api/v1/wallet', walletRoutes)
 
 async function start() {
-  validateGapEnv()
   await connectDb(process.env.MONGODB_URI)
   await ensureDefaultAdmin()
-  await seedDirectGames()
   app.listen(PORT, () => {
     console.log(`allGames backend listening on http://localhost:${PORT}`)
   })

@@ -659,35 +659,6 @@ body {
   max-height: none;
 }
 
-.game-exit-btn {
-  position: fixed;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
-  z-index: 1001;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  color: #fff;
-  font-size: 1.6rem;
-  line-height: 1;
-  background: rgba(10, 6, 20, 0.72);
-  box-shadow:
-    0 0 0 1px rgba(167, 139, 250, 0.45),
-    0 8px 20px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px);
-}
-
-.game-exit-btn:hover {
-  background: rgba(123, 61, 255, 0.85);
-}
-
-.game-exit-btn:active {
-  transform: scale(0.96);
-}
-
-
 .auth-panel {
   width: 100%;
   max-width: 26rem;

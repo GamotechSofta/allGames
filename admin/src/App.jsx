@@ -3,11 +3,13 @@ import {
   addGame,
   addPlayer,
   adminLogin,
+  deleteGame,
   getAdmin,
   listGames,
   listPlayers,
   setAdmin,
   toggleGame,
+  updateGameLaunchUrl,
 } from './api'
 import siteLogo from './assets/image.png'
 
@@ -133,6 +135,14 @@ function Login({ onLogin }) {
   )
 }
 
+const EMPTY_GAME_FORM = {
+  name: '',
+  gameId: '',
+  provider: '',
+  launchUrl: '',
+  status: 'active',
+}
+
 function Dashboard({ admin, onLogout }) {
   const [tab, setTab] = useState('players')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -140,13 +150,9 @@ function Dashboard({ admin, onLogout }) {
   const [players, setPlayers] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [gameForm, setGameForm] = useState({
-    name: '',
-    gameId: '',
-    provider: 'GAP',
-    status: 'active',
-    image: '',
-  })
+  const [savingUrlId, setSavingUrlId] = useState('')
+  const [urlDrafts, setUrlDrafts] = useState({})
+  const [gameForm, setGameForm] = useState(EMPTY_GAME_FORM)
   const [playerForm, setPlayerForm] = useState({
     username: '',
     phone: '',
@@ -165,7 +171,11 @@ function Dashboard({ admin, onLogout }) {
 
   async function refreshGames() {
     const res = await listGames()
-    setGames(res.data || [])
+    const rows = res.data || []
+    setGames(rows)
+    setUrlDrafts(
+      Object.fromEntries(rows.map((g) => [g.gameId, g.launchUrl || ''])),
+    )
   }
 
   async function refreshPlayers() {
@@ -198,7 +208,7 @@ function Dashboard({ admin, onLogout }) {
     setError('')
     try {
       await addGame(gameForm)
-      setGameForm({ name: '', gameId: '', provider: 'GAP', status: 'active', image: '' })
+      setGameForm(EMPTY_GAME_FORM)
       await refreshGames()
     } catch (err) {
       setError(err.message)
@@ -234,6 +244,34 @@ function Dashboard({ admin, onLogout }) {
       await refreshGames()
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  async function onDeleteGame(game) {
+    const label = game.title || game.name || game.gameId
+    if (!window.confirm(`Delete game “${label}”? This cannot be undone.`)) return
+    setError('')
+    try {
+      await deleteGame({ gameId: game.gameId })
+      await refreshGames()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function onSaveLaunchUrl(game) {
+    setError('')
+    setSavingUrlId(game.gameId)
+    try {
+      await updateGameLaunchUrl({
+        gameId: game.gameId,
+        launchUrl: urlDrafts[game.gameId] ?? '',
+      })
+      await refreshGames()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingUrlId('')
     }
   }
 
@@ -320,7 +358,7 @@ function Dashboard({ admin, onLogout }) {
                 CONTROL CENTER
               </p>
               <h1 className="font-display mt-1 text-2xl font-extrabold tracking-wide sm:text-3xl">
-                {tab === 'players' ? 'Players' : 'Games'}
+                {tab === 'players' ? 'Players' : 'Game Management'}
               </h1>
             </div>
           </div>
@@ -444,12 +482,9 @@ function Dashboard({ admin, onLogout }) {
             </>
           ) : (
             <>
-              <form onSubmit={onAddGame} className="panel-card grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <h2 className="font-display text-lg font-bold tracking-wide">Add game</h2>
-                  <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Add catalog games and toggle them live for the player lobby.
-                  </p>
+              <form onSubmit={onAddGame} className="panel-card grid gap-3 sm:grid-cols-3">
+                <div className="sm:col-span-3">
+                  <h2 className="font-display text-lg font-bold tracking-wide">Add Game</h2>
                 </div>
                 <input
                   required
@@ -460,73 +495,125 @@ function Dashboard({ admin, onLogout }) {
                 />
                 <input
                   required
-                  placeholder="Provider gameId"
+                  placeholder="Game ID (e.g. LUDO)"
                   className="admin-input"
                   value={gameForm.gameId}
                   onChange={(e) => setGameForm((f) => ({ ...f, gameId: e.target.value }))}
                 />
                 <input
                   required
-                  placeholder="Provider"
+                  placeholder="Provider (e.g. SPRING_LUDO)"
                   className="admin-input"
                   value={gameForm.provider}
                   onChange={(e) => setGameForm((f) => ({ ...f, provider: e.target.value }))}
                 />
                 <input
-                  placeholder="Image URL (optional)"
-                  className="admin-input"
-                  value={gameForm.image}
-                  onChange={(e) => setGameForm((f) => ({ ...f, image: e.target.value }))}
+                  required
+                  type="url"
+                  placeholder="Launch URL (Render frontend, e.g. https://ludo-xxx.onrender.com/)"
+                  className="admin-input sm:col-span-2"
+                  value={gameForm.launchUrl}
+                  onChange={(e) => setGameForm((f) => ({ ...f, launchUrl: e.target.value }))}
                 />
+                <select
+                  className="admin-input"
+                  value={gameForm.status}
+                  onChange={(e) => setGameForm((f) => ({ ...f, status: e.target.value }))}
+                >
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                </select>
                 <button
                   type="submit"
                   disabled={busy}
-                  className="btn-game btn-play sm:col-span-2 py-3 text-sm"
+                  className="btn-game btn-play sm:col-span-3 py-3 text-sm"
                 >
-                  {busy ? 'Saving…' : 'Add game'}
+                  {busy ? 'Saving…' : 'Add Game'}
                 </button>
+                <p className="sm:col-span-3 text-xs font-semibold text-[var(--muted)]">
+                  Platform opens: Launch URL + ?userId=&amp;gameId=&amp;sessionId=&amp;token=&amp;returnUrl=
+                </p>
               </form>
 
               <div className="panel-card overflow-x-auto !p-0">
+                <div className="border-b border-white/10 px-4 py-3">
+                  <h2 className="font-display text-lg font-bold tracking-wide">Games List</h2>
+                </div>
                 <table className="data-table min-w-full">
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>gameId</th>
+                      <th>Game ID</th>
                       <th>Provider</th>
+                      <th>Launch URL</th>
                       <th>Status</th>
                       <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {games.map((g) => (
-                      <tr key={g._id}>
-                        <td className="font-semibold text-white">{g.title || g.name}</td>
-                        <td className="font-mono text-xs text-[var(--lime)]">{g.gameId}</td>
-                        <td>{g.provider}</td>
-                        <td>
-                          <span
-                            className={`status-pill ${
-                              g.status === 'active' ? 'active' : 'inactive'
-                            }`}
-                          >
-                            {g.status}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            onClick={() => onToggle(g)}
-                            className="btn-game btn-ghost px-3 py-1.5 text-[0.58rem]"
-                          >
-                            Toggle
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {games.map((g) => {
+                      const isActive = g.status === 'active'
+                      const draft = urlDrafts[g.gameId] ?? ''
+                      const dirty = draft !== (g.launchUrl || '')
+                      return (
+                        <tr key={g._id}>
+                          <td className="font-semibold text-white">{g.title || g.name}</td>
+                          <td className="font-mono text-xs text-[var(--lime)]">{g.gameId}</td>
+                          <td>{g.provider}</td>
+                          <td className="min-w-[16rem]">
+                            <div className="flex flex-col gap-2 py-1">
+                              <input
+                                className="admin-input text-xs"
+                                value={draft}
+                                placeholder="https://…"
+                                onChange={(e) =>
+                                  setUrlDrafts((prev) => ({
+                                    ...prev,
+                                    [g.gameId]: e.target.value,
+                                  }))
+                                }
+                              />
+                              <button
+                                type="button"
+                                disabled={savingUrlId === g.gameId || !dirty}
+                                onClick={() => onSaveLaunchUrl(g)}
+                                className="btn-game btn-play w-fit px-3 py-1.5 text-[0.58rem]"
+                              >
+                                {savingUrlId === g.gameId ? 'Saving…' : 'Save URL'}
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <span
+                              className={`status-pill ${isActive ? 'active' : 'inactive'}`}
+                            >
+                              {g.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => onToggle(g)}
+                                className="btn-game btn-ghost px-3 py-1.5 text-[0.58rem]"
+                              >
+                                {isActive ? 'Disable' : 'Enable'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onDeleteGame(g)}
+                                className="btn-game btn-danger px-3 py-1.5 text-[0.58rem]"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                     {!games.length ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-10 text-center text-[var(--muted)]">
+                        <td colSpan={6} className="px-4 py-10 text-center text-[var(--muted)]">
                           No games yet. Add one above.
                         </td>
                       </tr>

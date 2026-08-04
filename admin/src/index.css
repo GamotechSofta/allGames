@@ -87,6 +87,16 @@ body {
   color: #5d6a84;
 }
 
+select.admin-input {
+  cursor: pointer;
+  appearance: auto;
+}
+
+select.admin-input option {
+  background: #0f0a1a;
+  color: var(--text);
+}
+
 .btn-game {
   position: relative;
   display: inline-flex;
