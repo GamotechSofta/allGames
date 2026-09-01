@@ -44,3 +44,11 @@ export const deleteGame = (payload) =>
 export const listPlayers = () => api('/admin/player/list')
 export const addPlayer = (payload) =>
   api('/admin/player/add', { method: 'POST', body: payload })
+export const creditPlayer = (payload) =>
+  api('/admin/player/credit', { method: 'POST', body: payload })
+export const debitPlayer = (payload) =>
+  api('/admin/player/debit', { method: 'POST', body: payload })
+export const updatePlayerWallet = (payload) =>
+  api('/admin/player/wallet', { method: 'POST', body: payload })
+export const fetchPlayerHistory = (playerId, limit = 50) =>
+  api(`/admin/player/history?playerId=${encodeURIComponent(playerId)}&limit=${limit}`)

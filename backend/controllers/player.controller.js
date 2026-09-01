@@ -1,5 +1,8 @@
 import bcrypt from 'bcryptjs'
-import { Player, Wallet, createPlayer, findPlayerByPhone } from '../store.js'
+import { nanoid } from 'nanoid'
+import mongoose from 'mongoose'
+import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
+import { Player, Wallet, adjustWallet, createPlayer, findPlayerById, findPlayerByPhone, getWallet } from '../store.js'
 
 function normalizePhone(raw) {
   return String(raw || '').replace(/\D/g, '').slice(0, 10)
@@ -54,6 +57,175 @@ export async function addPlayer(req, res) {
   } catch (err) {
     console.error(err)
     return res.status(500).json({ success: false, message: 'Failed to create player' })
+  }
+}
+
+async function adminAdjustPlayerBalance(req, res, { type, deltaSign }) {
+  try {
+    const playerId = String(req.body?.playerId || req.body?.userId || '').trim()
+    const amount = Number(req.body?.amount)
+    const remarks = String(req.body?.remarks || '').trim()
+
+    if (!playerId || !mongoose.Types.ObjectId.isValid(playerId)) {
+      return res.status(400).json({ success: false, message: 'Valid playerId is required' })
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'amount must be a positive number' })
+    }
+
+    const player = await findPlayerById(playerId)
+    if (!player) {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+
+    const txId =
+      String(req.body?.transactionId || '').trim() ||
+      `ADM_${type === 'CREDIT' ? 'CR' : 'DB'}_${nanoid(16)}`
+
+    const existingTx = await GapWalletTransaction.findOne({ transactionId: txId }).lean()
+    if (existingTx) {
+      return res.json({
+        success: true,
+        message: 'Duplicate transaction ignored',
+        data: {
+          playerId,
+          balance: Number(existingTx.balanceAfter || 0),
+          transactionId: txId,
+          amount,
+        },
+      })
+    }
+
+    const session = await mongoose.startSession()
+    let finalBalance = 0
+
+    try {
+      await session.withTransaction(async () => {
+        const wallet = await adjustWallet(playerId, deltaSign * amount, session)
+        finalBalance = Number(wallet.balance || 0)
+
+        await GapWalletTransaction.create(
+          [
+            {
+              transactionId: txId,
+              userId: player._id,
+              type,
+              amount,
+              status: 'SUCCESS',
+              balanceAfter: finalBalance,
+              rolledBack: false,
+              rawPayload: req.body || {},
+              requestMeta: { ip: req.ip, source: 'admin-api', adminId: req.adminId || null },
+              provider: 'ADMIN',
+              remarks,
+            },
+          ],
+          { session },
+        )
+      })
+    } catch (err) {
+      if (err?.code === 11000) {
+        const dup = await GapWalletTransaction.findOne({ transactionId: txId }).lean()
+        return res.json({
+          success: true,
+          message: 'Duplicate transaction ignored',
+          data: {
+            playerId,
+            balance: Number(dup?.balanceAfter || 0),
+            transactionId: txId,
+            amount,
+          },
+        })
+      }
+      if (err.code === 'INSUFFICIENT_BALANCE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Insufficient balance',
+          data: { balance: Number(err.currentBalance || 0) },
+        })
+      }
+      throw err
+    } finally {
+      await session.endSession()
+    }
+
+    return res.json({
+      success: true,
+      message: type === 'CREDIT' ? 'Player credited successfully' : 'Player debited successfully',
+      data: {
+        playerId,
+        balance: finalBalance,
+        transactionId: txId,
+        amount,
+      },
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ success: false, message: 'Failed to update player balance' })
+  }
+}
+
+/** POST /api/admin/player/credit */
+export async function creditPlayer(req, res) {
+  return adminAdjustPlayerBalance(req, res, { type: 'CREDIT', deltaSign: 1 })
+}
+
+/** POST /api/admin/player/debit */
+export async function debitPlayer(req, res) {
+  return adminAdjustPlayerBalance(req, res, { type: 'DEBIT', deltaSign: -1 })
+}
+
+/** PUT /api/admin/player/wallet — set player wallet to an exact balance */
+export async function updatePlayerWallet(req, res) {
+  try {
+    const playerId = String(req.body?.playerId || req.body?.userId || '').trim()
+    const targetBalance = Number(req.body?.balance)
+
+    if (!playerId || !mongoose.Types.ObjectId.isValid(playerId)) {
+      return res.status(400).json({ success: false, message: 'Valid playerId is required' })
+    }
+    if (!Number.isFinite(targetBalance) || targetBalance < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'balance must be a non-negative number',
+      })
+    }
+
+    const player = await findPlayerById(playerId)
+    if (!player) {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+
+    const wallet = await getWallet(playerId)
+    const currentBalance = Number(wallet.balance || 0)
+    const delta = targetBalance - currentBalance
+
+    if (delta === 0) {
+      return res.json({
+        success: true,
+        message: 'Wallet unchanged',
+        data: { playerId, balance: currentBalance },
+      })
+    }
+
+    const type = delta > 0 ? 'CREDIT' : 'DEBIT'
+    const amount = Math.abs(delta)
+    const remarks = String(req.body?.remarks || '').trim() || `Admin set wallet to ${targetBalance}`
+
+    req.body = {
+      ...req.body,
+      playerId,
+      amount,
+      remarks,
+    }
+
+    return adminAdjustPlayerBalance(req, res, {
+      type,
+      deltaSign: delta > 0 ? 1 : -1,
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ success: false, message: 'Failed to update player wallet' })
   }
 }
 

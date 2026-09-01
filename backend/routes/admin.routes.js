@@ -6,8 +6,15 @@ import {
   listGames,
   toggleGame,
   updateGameLaunchUrl,
+  adminPlayerGameHistory,
 } from '../controllers/game.controller.js'
-import { addPlayer, listPlayers } from '../controllers/player.controller.js'
+import {
+  addPlayer,
+  creditPlayer,
+  debitPlayer,
+  listPlayers,
+  updatePlayerWallet,
+} from '../controllers/player.controller.js'
 
 const router = Router()
 
@@ -18,6 +25,11 @@ router.put('/game/toggle', adminRequired, toggleGame)
 router.put('/game/launch-url', adminRequired, updateGameLaunchUrl)
 router.delete('/game/delete', adminRequired, deleteGame)
 router.post('/player/add', adminRequired, addPlayer)
+router.post('/player/credit', adminRequired, creditPlayer)
+router.post('/player/debit', adminRequired, debitPlayer)
+router.post('/player/wallet', adminRequired, updatePlayerWallet)
+router.put('/player/wallet', adminRequired, updatePlayerWallet)
+router.get('/player/history', adminRequired, adminPlayerGameHistory)
 router.get('/player/list', adminRequired, listPlayers)
 
 export default router

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import { fetchGames, fetchHistory, launchGame } from '../api'
+import { fetchGames, fetchGameHistory, launchGame } from '../api'
 import siteLogo from '../assets/image.png'
 
 /** Public CDN images (Unsplash / Wikimedia) for lobby art */
@@ -217,6 +217,8 @@ export default function Home() {
     [history],
   )
 
+  const gameHistory = useMemo(() => history, [history])
+
   const recent = useMemo(() => moneyHistory.slice(0, 4), [moneyHistory])
 
   useEffect(() => {
@@ -225,8 +227,8 @@ export default function Home() {
       .then((res) => setGames(res.data || []))
       .catch((err) => setError(err.message))
     refreshBalance().catch(() => {})
-    fetchHistory(40)
-      .then((res) => setHistory(res.data?.transactions || res.data?.feed || []))
+    fetchGameHistory(40)
+      .then((res) => setHistory(res.data?.feed || res.data?.transactions || []))
       .catch(() => {})
   }, [userId, refreshBalance])
 
@@ -234,9 +236,9 @@ export default function Home() {
     if (!userId || tab !== 'history') return
     let cancelled = false
     setHistoryLoading(true)
-    fetchHistory(60)
+    fetchGameHistory(60)
       .then((res) => {
-        if (!cancelled) setHistory(res.data?.transactions || res.data?.feed || [])
+        if (!cancelled) setHistory(res.data?.feed || res.data?.transactions || [])
       })
       .catch((err) => {
         if (!cancelled) setError(err.message || 'Failed to load history')
@@ -289,9 +291,9 @@ export default function Home() {
     setError('')
     try {
       await refreshBalance()
-      const [gamesRes, historyRes] = await Promise.all([fetchGames(), fetchHistory(60)])
+      const [gamesRes, historyRes] = await Promise.all([fetchGames(), fetchGameHistory(60)])
       setGames(gamesRes.data || [])
-      setHistory(historyRes.data?.transactions || historyRes.data?.feed || [])
+      setHistory(historyRes.data?.feed || historyRes.data?.transactions || [])
     } catch (err) {
       setError(err.message || 'Refresh failed')
     } finally {
@@ -535,7 +537,7 @@ export default function Home() {
                 <div className="mb-4">
                   <h2 className="font-display text-2xl font-bold tracking-[0.06em]">Game History</h2>
                   <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Credit and debit transactions from your wallet
+                    Game launches, bets, and wins from your account
                   </p>
                 </div>
                 <div className="history-panel">
@@ -543,25 +545,36 @@ export default function Home() {
                     <p className="px-5 py-12 text-center font-display text-sm tracking-[0.18em] text-[var(--muted)]">
                       LOADING HISTORY…
                     </p>
-                  ) : !moneyHistory.length ? (
+                  ) : !gameHistory.length ? (
                     <div className="px-5 py-14 text-center">
                       <p className="font-display text-sm tracking-[0.2em] text-[var(--muted)]">
-                        NO TRANSACTIONS YET
+                        NO ACTIVITY YET
                       </p>
                       <p className="mt-2 text-sm text-[var(--muted)]">
-                        Debits and credits from play will show up here.
+                        Launches and wallet transactions from play will show up here.
                       </p>
                     </div>
                   ) : (
-                    moneyHistory.map((row) => {
+                    gameHistory.map((row) => {
                       const type = String(row.type || row.kind || '').toUpperCase()
+                      const isLaunch = type === 'LAUNCH'
                       const isDebit = type === 'DEBIT' || type === 'BET'
                       const isCredit = type === 'CREDIT' || type === 'WIN'
-                      const label = isDebit ? 'DEBIT' : isCredit ? 'CREDIT' : type || 'TX'
+                      const label = isLaunch
+                        ? 'PLAY'
+                        : isDebit
+                          ? 'DEBIT'
+                          : isCredit
+                            ? 'CREDIT'
+                            : type || 'TX'
                       const amount = Math.abs(Number(row.amount) || 0)
                       return (
                         <div key={`${label}-${row.id}`} className="history-row">
-                          <span className={`history-badge ${isDebit ? 'bet' : isCredit ? 'win' : 'tx'}`}>
+                          <span
+                            className={`history-badge ${
+                              isLaunch ? 'launch' : isDebit ? 'bet' : isCredit ? 'win' : 'tx'
+                            }`}
+                          >
                             {label}
                           </span>
                           <div className="min-w-0">
@@ -569,23 +582,31 @@ export default function Home() {
                               {row.gameTitle || row.gameId || 'Wallet'}
                             </p>
                             <p className="mt-0.5 truncate text-xs font-semibold text-[var(--muted)]">
-                              {shortId(row.transactionId || row.roundId)}
-                              {row.status ? ` · ${row.status}` : ''}
+                              {isLaunch
+                                ? `Session ${shortId(row.sessionId)}`
+                                : shortId(row.transactionId || row.roundId)}
+                              {!isLaunch && row.status ? ` · ${row.status}` : ''}
                               {row.rolledBack ? ' · rolled back' : ''}
                             </p>
                           </div>
                           <div className="history-meta text-right">
-                            <p
-                              className={`font-display text-sm font-bold ${
-                                isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'
-                              }`}
-                            >
-                              {isDebit ? '−' : '+'}₹{amount.toLocaleString('en-IN')}
-                            </p>
+                            {isLaunch ? (
+                              <p className="font-display text-sm font-bold text-[var(--violet)]">
+                                Started
+                              </p>
+                            ) : (
+                              <p
+                                className={`font-display text-sm font-bold ${
+                                  isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'
+                                }`}
+                              >
+                                {isDebit ? '−' : '+'}₹{amount.toLocaleString('en-IN')}
+                              </p>
+                            )}
                             <p className="mt-0.5 text-xs text-[var(--muted)]">
                               {formatWhen(row.createdAt)}
                             </p>
-                            {typeof row.balanceAfter === 'number' ? (
+                            {!isLaunch && typeof row.balanceAfter === 'number' ? (
                               <p className="text-[0.65rem] text-[var(--muted)]">
                                 Bal ₹{Number(row.balanceAfter).toLocaleString('en-IN')}
                               </p>
@@ -637,12 +658,12 @@ export default function Home() {
                   <div className="profile-stat">
                     <span className="profile-stat-label">Games played</span>
                     <span className="profile-stat-value">
-                      {new Set(history.map((h) => h.gameId).filter(Boolean)).size}
+                      {new Set(gameHistory.filter((h) => (h.type || h.kind) === 'LAUNCH').map((h) => h.gameId).filter(Boolean)).size}
                     </span>
                   </div>
                   <div className="profile-stat">
                     <span className="profile-stat-label">Activity</span>
-                    <span className="profile-stat-value">{history.length}</span>
+                    <span className="profile-stat-value">{gameHistory.length}</span>
                   </div>
                 </div>
 

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { nanoid } from 'nanoid'
 import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
 import { findPlayerById, getWallet, adjustWallet } from '../store.js'
 import { gapRequest } from '../services/gap.service.js'
@@ -457,6 +458,173 @@ export async function rollbackWallet(req, res) {
     })
   } finally {
     if (session) await session.endSession()
+  }
+}
+
+function parsePositiveAmount(raw, res, label = 'amount') {
+  const amount = Number(raw)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    res.status(400).json({ success: false, message: `${label} must be a positive number` })
+    return null
+  }
+  return amount
+}
+
+async function applyWalletMutation({
+  userId,
+  delta,
+  type,
+  transactionId,
+  gameId = '',
+  roundId = '',
+  remarks = '',
+  rawPayload = {},
+  requestMeta = {},
+}) {
+  const txId = String(transactionId || '').trim() || `${type === 'CREDIT' ? 'USR_CR' : 'USR_DB'}_${nanoid(16)}`
+
+  const existingTx = await GapWalletTransaction.findOne({ transactionId: txId }).lean()
+  if (existingTx) {
+    return {
+      duplicate: true,
+      balance: Number(existingTx.balanceAfter || 0),
+      transactionId: txId,
+    }
+  }
+
+  const session = await mongoose.startSession()
+  let finalBalance = 0
+
+  try {
+    await session.withTransaction(async () => {
+      const { user, userId: id } = await getOrCreateWalletForUser(userId, session)
+      if (!user) {
+        const err = new Error('User not found')
+        err.code = 'USER_NOT_FOUND'
+        throw err
+      }
+
+      const wallet = await adjustWallet(id, delta, session)
+      finalBalance = Number(wallet.balance || 0)
+
+      await GapWalletTransaction.create(
+        [
+          {
+            transactionId: txId,
+            userId: user._id,
+            type,
+            amount: Math.abs(delta),
+            status: 'SUCCESS',
+            balanceAfter: finalBalance,
+            gameId: String(gameId || '').trim(),
+            roundId: String(roundId || '').trim(),
+            rolledBack: false,
+            rawPayload,
+            requestMeta,
+            provider: requestMeta.source || 'USER',
+            remarks: String(remarks || '').trim(),
+          },
+        ],
+        { session },
+      )
+    })
+  } catch (err) {
+    if (err?.code === 11000) {
+      const dup = await GapWalletTransaction.findOne({ transactionId: txId }).lean()
+      return {
+        duplicate: true,
+        balance: Number(dup?.balanceAfter || 0),
+        transactionId: txId,
+      }
+    }
+    throw err
+  } finally {
+    await session.endSession()
+  }
+
+  return { duplicate: false, balance: finalBalance, transactionId: txId }
+}
+
+/** POST /api/v1/wallet/credit — JWT player credits own wallet */
+export async function userCreditWallet(req, res) {
+  try {
+    const amount = parsePositiveAmount(req.body?.amount, res)
+    if (amount === null) return
+
+    const result = await applyWalletMutation({
+      userId: req.playerId,
+      delta: amount,
+      type: 'CREDIT',
+      transactionId: req.body?.transactionId,
+      gameId: req.body?.gameId,
+      roundId: req.body?.roundId,
+      remarks: req.body?.remarks,
+      rawPayload: req.body || {},
+      requestMeta: { ip: req.ip, source: 'user-wallet-api' },
+    })
+
+    return res.json({
+      success: true,
+      message: result.duplicate ? 'Duplicate transaction ignored' : 'Credit processed successfully',
+      data: {
+        playerId: req.playerId,
+        balance: result.balance,
+        transactionId: result.transactionId,
+        amount,
+        currency: 'INR',
+      },
+    })
+  } catch (err) {
+    if (err.code === 'USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+    console.error('User wallet credit error', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to credit wallet' })
+  }
+}
+
+/** POST /api/v1/wallet/debit — JWT player debits own wallet */
+export async function userDebitWallet(req, res) {
+  try {
+    const amount = parsePositiveAmount(req.body?.amount, res)
+    if (amount === null) return
+
+    const result = await applyWalletMutation({
+      userId: req.playerId,
+      delta: -amount,
+      type: 'DEBIT',
+      transactionId: req.body?.transactionId,
+      gameId: req.body?.gameId,
+      roundId: req.body?.roundId,
+      remarks: req.body?.remarks,
+      rawPayload: req.body || {},
+      requestMeta: { ip: req.ip, source: 'user-wallet-api' },
+    })
+
+    return res.json({
+      success: true,
+      message: result.duplicate ? 'Duplicate transaction ignored' : 'Debit processed successfully',
+      data: {
+        playerId: req.playerId,
+        balance: result.balance,
+        transactionId: result.transactionId,
+        amount,
+        currency: 'INR',
+      },
+    })
+  } catch (err) {
+    if (err.code === 'USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+    if (err.code === 'INSUFFICIENT_BALANCE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient balance',
+        data: { balance: Number(err.currentBalance || 0) },
+      })
+    }
+    console.error('User wallet debit error', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to debit wallet' })
   }
 }
 

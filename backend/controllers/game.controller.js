@@ -407,7 +407,68 @@ export async function launchGame(req, res) {
   }
 }
 
-/** GET /api/game/history — credit/debit wallet history for the authenticated player */
+/** Build merged game history: launches + wallet credit/debit rows */
+export async function buildPlayerGameHistory(userId, limit = 50) {
+  const oid = new mongoose.Types.ObjectId(String(userId))
+  const cap = Math.min(Math.max(Number(limit) || 50, 1), 100)
+
+  const [sessions, transactions, catalog] = await Promise.all([
+    GameSession.find({ userId: oid }).sort({ createdAt: -1 }).limit(cap).lean(),
+    GapWalletTransaction.find({
+      userId: oid,
+      type: { $in: ['DEBIT', 'CREDIT', 'debit', 'credit'] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(cap)
+      .lean(),
+    Game.find({}).select('gameId title name provider').lean(),
+  ])
+
+  const titleById = Object.fromEntries(
+    catalog.map((g) => [g.gameId, g.title || g.name || g.gameId]),
+  )
+
+  const sessionRows = sessions.map((s) => ({
+    id: String(s._id),
+    kind: 'LAUNCH',
+    type: 'LAUNCH',
+    gameId: s.gameId || '',
+    gameTitle: s.gameId ? titleById[s.gameId] || s.gameId : 'Game',
+    sessionId: s.sessionId || '',
+    provider: s.provider || '',
+    createdAt: s.createdAt,
+  }))
+
+  const txRows = transactions.map((t) => {
+    const type = String(t.type || '').toUpperCase()
+    return {
+      id: String(t._id),
+      kind: type === 'CREDIT' ? 'CREDIT' : type === 'DEBIT' ? 'DEBIT' : type || 'TX',
+      type,
+      amount: Number(t.amount) || 0,
+      balanceAfter: Number(t.balanceAfter) || 0,
+      status: t.status || 'SUCCESS',
+      gameId: t.gameId || '',
+      gameTitle: t.gameId ? titleById[t.gameId] || t.gameId : 'Wallet',
+      roundId: t.roundId || '',
+      transactionId: t.transactionId,
+      rolledBack: Boolean(t.rolledBack),
+      createdAt: t.createdAt,
+    }
+  })
+
+  const feed = [...sessionRows, ...txRows]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, cap)
+
+  return {
+    feed,
+    sessions: sessionRows,
+    transactions: txRows,
+  }
+}
+
+/** GET /api/game/history — game launches + credit/debit history for authenticated player */
 export async function playerGameHistory(req, res) {
   try {
     const playerId = String(req.playerId || '')
@@ -415,52 +476,55 @@ export async function playerGameHistory(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid player' })
     }
 
-    const oid = new mongoose.Types.ObjectId(playerId)
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100)
-
-    const [transactions, catalog] = await Promise.all([
-      GapWalletTransaction.find({
-        userId: oid,
-        type: { $in: ['DEBIT', 'CREDIT', 'debit', 'credit'] },
-      })
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .lean(),
-      Game.find({}).select('gameId title name provider').lean(),
-    ])
-
-    const titleById = Object.fromEntries(
-      catalog.map((g) => [g.gameId, g.title || g.name || g.gameId]),
-    )
-
-    const txRows = transactions.map((t) => {
-      const type = String(t.type || '').toUpperCase()
-      return {
-        id: String(t._id),
-        kind: type === 'CREDIT' ? 'CREDIT' : type === 'DEBIT' ? 'DEBIT' : type || 'TX',
-        type,
-        amount: Number(t.amount) || 0,
-        balanceAfter: Number(t.balanceAfter) || 0,
-        status: t.status || 'SUCCESS',
-        gameId: t.gameId || '',
-        gameTitle: t.gameId ? titleById[t.gameId] || t.gameId : 'Wallet',
-        roundId: t.roundId || '',
-        transactionId: t.transactionId,
-        rolledBack: Boolean(t.rolledBack),
-        createdAt: t.createdAt,
-      }
-    })
+    const data = await buildPlayerGameHistory(playerId, limit)
 
     return res.json({
       success: true,
       data: {
-        feed: txRows,
-        transactions: txRows,
+        feed: data.feed,
+        transactions: data.transactions,
+        sessions: data.sessions,
       },
     })
   } catch (error) {
     console.error('[GAME] history error', error)
     return res.status(500).json({ success: false, message: 'Failed to load history' })
+  }
+}
+
+/** GET /api/admin/player/history?playerId= — game history for any player (admin) */
+export async function adminPlayerGameHistory(req, res) {
+  try {
+    const playerId = String(req.query?.playerId || req.query?.userId || '').trim()
+    if (!isValidObjectId(playerId)) {
+      return res.status(400).json({ success: false, message: 'Valid playerId is required' })
+    }
+
+    const player = await findPlayerById(playerId)
+    if (!player) {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100)
+    const data = await buildPlayerGameHistory(playerId, limit)
+
+    return res.json({
+      success: true,
+      data: {
+        player: {
+          id: playerIdOf(player),
+          username: player.username,
+          phone: player.phone,
+        },
+        feed: data.feed,
+        transactions: data.transactions,
+        sessions: data.sessions,
+      },
+    })
+  } catch (error) {
+    console.error('[ADMIN] player history error', error)
+    return res.status(500).json({ success: false, message: 'Failed to load player history' })
   }
 }
 

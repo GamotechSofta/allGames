@@ -41,8 +41,24 @@ export const register = (payload) =>
 export const fetchMe = () => request(`${AUTH_BASE}/auth/me`)
 export const fetchBalance = () => request(`${AUTH_BASE}/wallet/balance`)
 
+export const creditWallet = (amount, extras = {}) =>
+  request(`${AUTH_BASE}/wallet/credit`, {
+    method: 'POST',
+    body: { amount, ...extras },
+  })
+
+export const debitWallet = (amount, extras = {}) =>
+  request(`${AUTH_BASE}/wallet/debit`, {
+    method: 'POST',
+    body: { amount, ...extras },
+  })
+
 export const fetchGames = () =>
   request(`${API_ROOT}/api/game/list?fields=home&limit=24`)
+
+/** Player game history: launches + wallet credit/debit rows */
+export const fetchGameHistory = (limit = 50) =>
+  request(`${API_ROOT}/api/game/history?limit=${limit}`)
 
 /** Player credit/debit history from wallet APIs */
 export const fetchHistory = (limit = 50) =>

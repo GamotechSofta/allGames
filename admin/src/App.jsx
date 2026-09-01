@@ -10,6 +10,8 @@ import {
   setAdmin,
   toggleGame,
   updateGameLaunchUrl,
+  updatePlayerWallet,
+  fetchPlayerHistory,
 } from './api'
 import siteLogo from './assets/image.png'
 
@@ -55,6 +57,144 @@ function shortId(id) {
   const s = String(id || '')
   if (s.length <= 10) return s
   return `${s.slice(0, 6)}…${s.slice(-4)}`
+}
+
+function formatWhen(value) {
+  if (!value) return '—'
+  try {
+    return new Date(value).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '—'
+  }
+}
+
+function PlayerHistoryModal({ player, history, loading, onClose }) {
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  return (
+    <div className="admin-modal-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="admin-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="player-history-title"
+      >
+        <div className="admin-modal-header">
+          <div className="min-w-0">
+            <p className="font-display text-[0.65rem] font-bold tracking-[0.2em] text-[var(--lime)]">
+              PLAYER HISTORY
+            </p>
+            <h2 id="player-history-title" className="font-display mt-1 truncate text-xl font-bold tracking-wide">
+              {player.username}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+              {player.phone ? `+91 ${player.phone}` : shortId(player.id)} · Launches, debits & credits
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="admin-modal-close"
+            aria-label="Close history"
+          >
+            <IconClose />
+          </button>
+        </div>
+
+        <div className="admin-modal-body">
+          {loading ? (
+            <p className="py-12 text-center text-sm font-semibold text-[var(--muted)]">
+              Loading history…
+            </p>
+          ) : !history.length ? (
+            <p className="py-12 text-center text-sm font-semibold text-[var(--muted)]">
+              No game activity yet for this player.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table min-w-full">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Game</th>
+                    <th>Details</th>
+                    <th>Amount</th>
+                    <th>When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((row) => {
+                    const type = String(row.type || row.kind || '').toUpperCase()
+                    const isLaunch = type === 'LAUNCH'
+                    const isDebit = type === 'DEBIT'
+                    const isCredit = type === 'CREDIT'
+                    const label = isLaunch
+                      ? 'PLAY'
+                      : isDebit
+                        ? 'DEBIT'
+                        : isCredit
+                          ? 'CREDIT'
+                          : type || 'TX'
+                    return (
+                      <tr key={`${label}-${row.id}`}>
+                        <td>
+                          <span
+                            className={`status-pill ${
+                              isLaunch ? 'active' : isDebit ? 'inactive' : 'active'
+                            }`}
+                          >
+                            {label}
+                          </span>
+                        </td>
+                        <td className="font-semibold text-white">
+                          {row.gameTitle || row.gameId || 'Wallet'}
+                        </td>
+                        <td className="text-xs text-[var(--muted)]">
+                          {isLaunch
+                            ? `Session ${shortId(row.sessionId)}`
+                            : shortId(row.transactionId || row.roundId)}
+                          {row.rolledBack ? ' · rolled back' : ''}
+                        </td>
+                        <td className="font-display font-bold">
+                          {isLaunch ? (
+                            <span className="text-[var(--violet)]">—</span>
+                          ) : (
+                            <span className={isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'}>
+                              {isDebit ? '−' : '+'}₹
+                              {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-xs text-[var(--muted)]">{formatWhen(row.createdAt)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="admin-modal-footer">
+          <button type="button" onClick={onClose} className="btn-game btn-ghost px-4 py-2 text-[0.65rem]">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function Login({ onLogin }) {
@@ -151,7 +291,13 @@ function Dashboard({ admin, onLogout }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [savingUrlId, setSavingUrlId] = useState('')
+  const [savingWalletId, setSavingWalletId] = useState('')
+  const [editingWalletId, setEditingWalletId] = useState('')
+  const [historyPlayer, setHistoryPlayer] = useState(null)
+  const [playerHistory, setPlayerHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [urlDrafts, setUrlDrafts] = useState({})
+  const [walletDrafts, setWalletDrafts] = useState({})
   const [gameForm, setGameForm] = useState(EMPTY_GAME_FORM)
   const [playerForm, setPlayerForm] = useState({
     username: '',
@@ -180,7 +326,43 @@ function Dashboard({ admin, onLogout }) {
 
   async function refreshPlayers() {
     const res = await listPlayers()
-    setPlayers(res.data || [])
+    const rows = res.data || []
+    setPlayers(rows)
+  }
+
+  function startEditWallet(player) {
+    setError('')
+    setEditingWalletId(player.id)
+    setWalletDrafts((prev) => ({
+      ...prev,
+      [player.id]: String(Number(player.balance ?? 0)),
+    }))
+  }
+
+  function cancelEditWallet() {
+    setEditingWalletId('')
+    setError('')
+  }
+
+  async function openPlayerHistory(player) {
+    setError('')
+    setHistoryPlayer(player)
+    setPlayerHistory([])
+    setHistoryLoading(true)
+    try {
+      const res = await fetchPlayerHistory(player.id, 60)
+      setPlayerHistory(res.data?.feed || res.data?.transactions || [])
+    } catch (err) {
+      setError(err.message)
+      setHistoryPlayer(null)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  function closePlayerHistory() {
+    setHistoryPlayer(null)
+    setPlayerHistory([])
   }
 
   useEffect(() => {
@@ -188,18 +370,21 @@ function Dashboard({ admin, onLogout }) {
   }, [])
 
   useEffect(() => {
-    if (!menuOpen) return undefined
+    if (!menuOpen && !historyPlayer) return undefined
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = prev
     }
-  }, [menuOpen])
+  }, [menuOpen, historyPlayer])
 
   function selectTab(next) {
     setTab(next)
     setMenuOpen(false)
     setError('')
+    setEditingWalletId('')
+    setHistoryPlayer(null)
+    setPlayerHistory([])
   }
 
   async function onAddGame(e) {
@@ -256,6 +441,28 @@ function Dashboard({ admin, onLogout }) {
       await refreshGames()
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  async function onSaveWallet(player) {
+    setError('')
+    setSavingWalletId(player.id)
+    try {
+      const balance = Number(walletDrafts[player.id])
+      if (!Number.isFinite(balance) || balance < 0) {
+        throw new Error('Enter a valid non-negative balance')
+      }
+      await updatePlayerWallet({
+        playerId: player.id,
+        balance,
+        remarks: `Admin updated wallet to ${balance}`,
+      })
+      setEditingWalletId('')
+      await refreshPlayers()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingWalletId('')
     }
   }
 
@@ -452,26 +659,88 @@ function Dashboard({ admin, onLogout }) {
                       <th>Phone</th>
                       <th>Player ID</th>
                       <th>Balance</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {players.map((p) => (
-                      <tr key={p.id}>
-                        <td className="font-semibold text-white">{p.username}</td>
-                        <td>{p.phone}</td>
-                        <td>
-                          <span className="font-mono text-xs text-[var(--lime)]" title={p.id}>
-                            {shortId(p.id)}
-                          </span>
-                        </td>
-                        <td className="font-display font-bold text-[var(--gold)]">
-                          ₹{Number(p.balance ?? 0).toLocaleString('en-IN')}
-                        </td>
-                      </tr>
-                    ))}
+                    {players.map((p) => {
+                      const isEditing = editingWalletId === p.id
+                      const draft = walletDrafts[p.id] ?? String(Number(p.balance ?? 0))
+                      return (
+                        <tr key={p.id}>
+                          <td className="font-semibold text-white">{p.username}</td>
+                          <td>{p.phone}</td>
+                          <td>
+                            <span className="font-mono text-xs text-[var(--lime)]" title={p.id}>
+                              {shortId(p.id)}
+                            </span>
+                          </td>
+                          <td className="min-w-[10rem]">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min={0}
+                                autoFocus
+                                className="admin-input text-xs"
+                                value={draft}
+                                onChange={(e) =>
+                                  setWalletDrafts((prev) => ({
+                                    ...prev,
+                                    [p.id]: e.target.value,
+                                  }))
+                                }
+                              />
+                            ) : (
+                              <span className="font-display font-bold text-[var(--gold)]">
+                                ₹{Number(p.balance ?? 0).toLocaleString('en-IN')}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={savingWalletId === p.id}
+                                  onClick={() => onSaveWallet(p)}
+                                  className="btn-game btn-play px-3 py-1.5 text-[0.58rem]"
+                                >
+                                  {savingWalletId === p.id ? 'Saving…' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={savingWalletId === p.id}
+                                  onClick={cancelEditWallet}
+                                  className="btn-game btn-ghost px-3 py-1.5 text-[0.58rem]"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditWallet(p)}
+                                  className="btn-game btn-ghost px-3 py-1.5 text-[0.58rem]"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openPlayerHistory(p)}
+                                  className="btn-game btn-play px-3 py-1.5 text-[0.58rem]"
+                                >
+                                  History
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                     {!players.length ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-10 text-center text-[var(--muted)]">
+                        <td colSpan={5} className="px-4 py-10 text-center text-[var(--muted)]">
                           No players yet. Create one above.
                         </td>
                       </tr>
@@ -625,6 +894,15 @@ function Dashboard({ admin, onLogout }) {
           )}
         </main>
       </div>
+
+      {historyPlayer ? (
+        <PlayerHistoryModal
+          player={historyPlayer}
+          history={playerHistory}
+          loading={historyLoading}
+          onClose={closePlayerHistory}
+        />
+      ) : null}
     </div>
   )
 }

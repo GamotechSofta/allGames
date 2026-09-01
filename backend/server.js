@@ -17,6 +17,7 @@ import { ensureDefaultAdmin } from './middleware/adminAuth.js'
 import adminRoutes from './routes/admin.routes.js'
 import gameRoutes from './routes/game.routes.js'
 import walletRoutes from './routes/wallet.routes.js'
+import { userCreditWallet, userDebitWallet } from './controllers/wallet.controller.js'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3010
@@ -170,6 +171,10 @@ app.get('/api/v1/wallet/balance', authRequired, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to load balance' })
   }
 })
+
+/** Player JWT wallet credit/debit */
+app.post('/api/v1/wallet/credit', authRequired, userCreditWallet)
+app.post('/api/v1/wallet/debit', authRequired, userDebitWallet)
 
 /** Player JWT wallet history from credit/debit APIs */
 app.get('/api/v1/wallet/history', authRequired, async (req, res) => {
