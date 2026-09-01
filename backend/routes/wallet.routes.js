@@ -8,6 +8,7 @@ import {
   creditWallet,
   rollbackWallet,
   getWalletTransactionById,
+  genericUserWalletCredit,
 } from '../controllers/wallet.controller.js'
 
 const router = Router()
@@ -45,6 +46,7 @@ router.get('/health', (_req, res) => {
 router.post('/balance', walletLimiter, verifyGapSignature, walletBalance)
 router.post('/debit', walletLimiter, verifyGapSignature, debitWallet)
 router.post('/credit', walletLimiter, verifyGapSignature, creditWallet)
+router.post('/credit/user', walletLimiter, verifyLookupAccess, genericUserWalletCredit)
 router.post('/rollback', walletLimiter, verifyGapSignature, rollbackWallet)
 router.get(
   '/transaction/:transactionId',

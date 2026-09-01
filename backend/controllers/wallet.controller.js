@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { nanoid } from 'nanoid'
 import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
+import { Game } from '../models/game.model.js'
 import { findPlayerById, getWallet, adjustWallet } from '../store.js'
 import { gapRequest } from '../services/gap.service.js'
 import { auditLog } from '../utils/logger.js'
@@ -543,6 +544,77 @@ async function applyWalletMutation({
   }
 
   return { duplicate: false, balance: finalBalance, transactionId: txId }
+}
+
+async function resolveGameId(gameName) {
+  const trimmed = String(gameName || '').trim()
+  if (!trimmed) return ''
+
+  const game = await Game.findOne({
+    $or: [{ gameId: trimmed }, { name: trimmed }, { title: trimmed }],
+  }).lean()
+
+  return game?.gameId || trimmed
+}
+
+/**
+ * POST /api/wallet/credit/user
+ * Body: { userId, gameName, amount, description }
+ * Optional: transactionId (idempotency)
+ */
+export async function genericUserWalletCredit(req, res) {
+  try {
+    const body = req.body || {}
+    const userId = String(body.userId || body.userID || '').trim()
+    const gameName = String(body.gameName || body.game || '').trim()
+    const description = String(body.description || body.remarks || '').trim()
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' })
+    }
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid userId' })
+    }
+
+    const amount = parsePositiveAmount(body.amount, res)
+    if (amount === null) return
+
+    const gameId = await resolveGameId(gameName)
+    const transactionId =
+      String(body.transactionId || '').trim() || `GEN_CR_${nanoid(16)}`
+
+    const result = await applyWalletMutation({
+      userId,
+      delta: amount,
+      type: 'CREDIT',
+      transactionId,
+      gameId,
+      remarks: description,
+      rawPayload: body,
+      requestMeta: { ip: req.ip, source: 'generic-wallet-credit-api' },
+    })
+
+    return res.json({
+      success: true,
+      message: result.duplicate ? 'Duplicate transaction ignored' : 'Credit processed successfully',
+      data: {
+        userId,
+        gameName: gameName || null,
+        gameId: gameId || null,
+        amount,
+        description: description || null,
+        balance: result.balance,
+        transactionId: result.transactionId,
+        currency: 'INR',
+      },
+    })
+  } catch (err) {
+    if (err.code === 'USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    console.error('Generic wallet credit error', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to credit wallet' })
+  }
 }
 
 /** POST /api/v1/wallet/credit — JWT player credits own wallet */
