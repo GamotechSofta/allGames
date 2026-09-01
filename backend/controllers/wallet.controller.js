@@ -558,23 +558,28 @@ async function resolveGameId(gameName) {
 }
 
 /**
- * POST /api/wallet/credit/user
+ * POST /api/wallet/credit/user — player JWT
  * Body: { userId, gameName, amount, description }
  * Optional: transactionId (idempotency)
  */
 export async function genericUserWalletCredit(req, res) {
   try {
     const body = req.body || {}
-    const userId = String(body.userId || body.userID || '').trim()
+    const requestedUserId = String(body.userId || body.userID || req.playerId || '').trim()
     const gameName = String(body.gameName || body.game || '').trim()
     const description = String(body.description || body.remarks || '').trim()
 
-    if (!userId) {
+    if (!requestedUserId) {
       return res.status(400).json({ success: false, message: 'userId is required' })
     }
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
+    if (!mongoose.Types.ObjectId.isValid(requestedUserId)) {
       return res.status(400).json({ success: false, message: 'Invalid userId' })
     }
+    if (String(req.playerId) !== requestedUserId) {
+      return res.status(403).json({ success: false, message: 'You can only credit your own wallet' })
+    }
+
+    const userId = String(req.playerId)
 
     const amount = parsePositiveAmount(body.amount, res)
     if (amount === null) return

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
+import { authRequired } from '../auth.js'
 import { verifyGapSignature } from '../middleware/gapAuth.middleware.js'
 import { adminRequired } from '../middleware/adminAuth.js'
 import {
@@ -46,7 +47,7 @@ router.get('/health', (_req, res) => {
 router.post('/balance', walletLimiter, verifyGapSignature, walletBalance)
 router.post('/debit', walletLimiter, verifyGapSignature, debitWallet)
 router.post('/credit', walletLimiter, verifyGapSignature, creditWallet)
-router.post('/credit/user', walletLimiter, verifyLookupAccess, genericUserWalletCredit)
+router.post('/credit/user', walletLimiter, authRequired, genericUserWalletCredit)
 router.post('/rollback', walletLimiter, verifyGapSignature, rollbackWallet)
 router.get(
   '/transaction/:transactionId',
