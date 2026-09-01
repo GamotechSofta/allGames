@@ -31,12 +31,31 @@ function formatWhen(value) {
   }
 }
 
+function userInitials(name) {
+  const parts = String(name || 'Player').trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  return String(name || 'PL').slice(0, 2).toUpperCase()
+}
+
 function badgeClass(kind) {
   const k = String(kind || '').toUpperCase()
   if (k === 'LAUNCH') return 'launch'
   if (k === 'BET' || k === 'DEBIT') return 'bet'
   if (k === 'WIN' || k === 'CREDIT') return 'win'
   return 'tx'
+}
+
+function historyKind(row) {
+  return String(row?.type || row?.kind || '').toUpperCase()
+}
+
+function isLaunchHistoryRow(row) {
+  return historyKind(row) === 'LAUNCH'
+}
+
+function isWalletHistoryRow(row) {
+  const k = historyKind(row)
+  return k === 'CREDIT' || k === 'DEBIT' || k === 'BET' || k === 'WIN'
 }
 
 function gameImage(game) {
@@ -95,7 +114,7 @@ function IconProfile() {
 
 function IconLogout() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="1em" height="1em">
       <path d="M10 7V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2" />
       <path d="M15 12H3m0 0 3-3m-3 3 3 3" />
     </svg>
@@ -137,8 +156,8 @@ function IconClose() {
 }
 
 const NAV = [
-  { id: 'lobby', label: 'Lobby', Icon: IconHome },
-  { id: 'games', label: 'Games', Icon: IconGames },
+  { id: 'lobby', label: 'Home', Icon: IconHome },
+  { id: 'games', label: 'All Games', Icon: IconGames },
   { id: 'history', label: 'History', Icon: IconHistory },
   { id: 'wallet', label: 'Profile', Icon: IconProfile },
 ]
@@ -162,6 +181,7 @@ export default function Home() {
   const [games, setGames] = useState([])
   const [history, setHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyView, setHistoryView] = useState('game')
   const [error, setError] = useState('')
   const [launching, setLaunching] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -209,17 +229,16 @@ export default function Home() {
   }, [location.state, location.pathname, searchParams, navigate, setSearchParams])
 
   const moneyHistory = useMemo(
-    () =>
-      history.filter((row) => {
-        const kind = String(row.kind || row.type || '').toUpperCase()
-        return kind === 'CREDIT' || kind === 'DEBIT' || kind === 'BET' || kind === 'WIN'
-      }),
+    () => history.filter(isWalletHistoryRow),
     [history],
   )
 
-  const gameHistory = useMemo(() => history, [history])
+  const gameHistory = useMemo(() => history.filter(isLaunchHistoryRow), [history])
+
+  const visibleHistory = historyView === 'game' ? gameHistory : moneyHistory
 
   const recent = useMemo(() => moneyHistory.slice(0, 4), [moneyHistory])
+  const recentActivity = useMemo(() => gameHistory.slice(0, 5), [gameHistory])
 
   useEffect(() => {
     if (!userId) return
@@ -343,7 +362,7 @@ export default function Home() {
   function renderGameCards() {
     return (
       <>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="game-grid grid grid-cols-2 gap-3 sm:gap-4">
           {games.map((game, index) => {
             const id = game.gameId
             const busy = launching === id
@@ -402,21 +421,14 @@ export default function Home() {
       />
 
       <aside className="dash-sidebar">
-        <div className="dash-brand">
-          <img src={siteLogo} alt="AllGames" className="site-logo" />
-          <div>
-            <p className="dash-brand-title">ALLGAMES</p>
-            <p className="text-xs font-semibold tracking-wide text-[var(--muted)]">Player Lobby</p>
-          </div>
-          <button
-            type="button"
-            className="menu-close-btn"
-            aria-label="Close menu"
-            onClick={() => setMenuOpen(false)}
-          >
-            <IconClose />
-          </button>
-        </div>
+        <button
+          type="button"
+          className="menu-close-btn"
+          aria-label="Close menu"
+          onClick={() => setMenuOpen(false)}
+        >
+          <IconClose />
+        </button>
 
         <nav className="nav-list" aria-label="Main">
           {NAV.map(({ id, label, Icon }) => (
@@ -427,40 +439,48 @@ export default function Home() {
               onClick={() => selectTab(id)}
             >
               <Icon />
-              {label}
+              <span className="nav-item-label">{label}</span>
             </button>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-wallet">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-              Your wallet
-            </p>
-            <p className="font-display mt-1 text-xl font-bold tracking-wide text-[var(--gold)]">
-              ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
-            </p>
-            <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
-              Points ready to play
-            </p>
+          <div className="nav-divider" />
+
+          <div className="sidebar-utility-card sidebar-wallet-card">
+            <div className="sidebar-wallet-row">
+              <span className="sidebar-wallet-icon">
+                <IconCoin />
+              </span>
+              <div className="min-w-0">
+                <p className="sidebar-utility-label">Wallet balance</p>
+                <p className="sidebar-wallet-amount">
+                  ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
+                </p>
+              </div>
+            </div>
             <button
               type="button"
-              className="btn-game btn-purple mt-3 w-full py-2 text-[0.62rem]"
+              className="sidebar-utility-action"
               onClick={() => selectTab('wallet')}
             >
               View Profile
             </button>
           </div>
+
           <button
             type="button"
-            className="btn-game btn-danger sidebar-logout w-full py-2.5 text-[0.65rem]"
+            className="sidebar-support-btn"
             onClick={() => {
               setMenuOpen(false)
               logout()
             }}
           >
-            <IconLogout />
-            Logout
+            <span className="sidebar-support-left">
+              <IconLogout />
+              <span>Logout</span>
+            </span>
+            <span className="sidebar-badge">Exit</span>
           </button>
         </div>
       </aside>
@@ -488,7 +508,6 @@ export default function Home() {
               onClick={() => setMenuOpen(true)}
             >
               <IconMenu />
-              <span>Menu</span>
             </button>
           </div>
         </div>
@@ -513,7 +532,7 @@ export default function Home() {
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="btn-game btn-purple px-3.5 py-2.5 text-[0.62rem]"
+              className="btn-game btn-purple header-refresh-btn px-3.5 py-2.5 text-[0.62rem]"
             >
               {refreshing ? '…' : 'Refresh'}
             </button>
@@ -535,27 +554,53 @@ export default function Home() {
             {showHistory ? (
               <div>
                 <div className="mb-4">
-                  <h2 className="font-display text-2xl font-bold tracking-[0.06em]">Game History</h2>
+                  <h2 className="font-display text-2xl font-bold tracking-[0.06em]">History</h2>
                   <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    Game launches, bets, and wins from your account
+                    {historyView === 'game'
+                      ? 'Games you launched from the lobby'
+                      : 'Wallet debits and credits from play'}
                   </p>
+                </div>
+                <div className="history-tabs" role="tablist" aria-label="History type">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={historyView === 'game'}
+                    className={`history-tab ${historyView === 'game' ? 'is-active' : ''}`}
+                    onClick={() => setHistoryView('game')}
+                  >
+                    Game history
+                    <span className="history-tab-count">{gameHistory.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={historyView === 'wallet'}
+                    className={`history-tab ${historyView === 'wallet' ? 'is-active' : ''}`}
+                    onClick={() => setHistoryView('wallet')}
+                  >
+                    Wallet history
+                    <span className="history-tab-count">{moneyHistory.length}</span>
+                  </button>
                 </div>
                 <div className="history-panel">
                   {historyLoading ? (
                     <p className="px-5 py-12 text-center font-display text-sm tracking-[0.18em] text-[var(--muted)]">
                       LOADING HISTORY…
                     </p>
-                  ) : !gameHistory.length ? (
+                  ) : !visibleHistory.length ? (
                     <div className="px-5 py-14 text-center">
                       <p className="font-display text-sm tracking-[0.2em] text-[var(--muted)]">
-                        NO ACTIVITY YET
+                        {historyView === 'game' ? 'NO GAME ACTIVITY YET' : 'NO WALLET ACTIVITY YET'}
                       </p>
                       <p className="mt-2 text-sm text-[var(--muted)]">
-                        Launches and wallet transactions from play will show up here.
+                        {historyView === 'game'
+                          ? 'Launch a game from the lobby to see sessions here.'
+                          : 'Debits and credits from play will show up here.'}
                       </p>
                     </div>
                   ) : (
-                    gameHistory.map((row) => {
+                    visibleHistory.map((row) => {
                       const type = String(row.type || row.kind || '').toUpperCase()
                       const isLaunch = type === 'LAUNCH'
                       const isDebit = type === 'DEBIT' || type === 'BET'
@@ -591,7 +636,7 @@ export default function Home() {
                           </div>
                           <div className="history-meta text-right">
                             {isLaunch ? (
-                              <p className="font-display text-sm font-bold text-[var(--violet)]">
+                              <p className="font-display text-sm font-bold text-[var(--muted)]">
                                 Started
                               </p>
                             ) : (
@@ -622,152 +667,197 @@ export default function Home() {
 
             {showWallet ? (
               <div className="profile-page">
-                <div className="profile-hero">
-                  <div className="profile-hero-bg" />
-                  <div className="profile-hero-body">
-                    <img src={siteLogo} alt="" className="profile-avatar" />
-                    <div className="min-w-0">
-                      <p className="font-display text-[0.65rem] font-bold tracking-[0.22em] text-[var(--lime)]">
-                        PLAYER PROFILE
-                      </p>
-                      <h2 className="font-display mt-1 truncate text-2xl font-extrabold tracking-wide sm:text-3xl">
-                        {user.username || 'Player'}
-                      </h2>
-                      <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                        {user.phone ? `+91 ${user.phone}` : 'Phone not set'}
-                      </p>
+                <div className="profile-header-card">
+                  <div className="profile-header-main">
+                    <div className="profile-avatar-wrap" aria-hidden="true">
+                      <span className="profile-avatar-fallback">{userInitials(user.username)}</span>
+                      <span className="profile-status-dot" title="Active" />
                     </div>
-                    <button
-                      type="button"
-                      onClick={onRefresh}
-                      disabled={refreshing}
-                      className="btn-game btn-purple ml-auto px-4 py-2.5 text-[0.62rem]"
-                    >
-                      {refreshing ? '…' : 'Refresh'}
-                    </button>
+                    <div className="profile-header-text min-w-0">
+                      <p className="profile-eyebrow">Player profile</p>
+                      <h2 className="profile-name">{user.username || 'Player'}</h2>
+                      <p className="profile-phone">
+                        {user.phone ? `+91 ${user.phone}` : 'Phone not linked'}
+                      </p>
+                      <span className="profile-status-pill">Active account</span>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={onRefresh}
+                    disabled={refreshing}
+                    className="btn-game btn-purple profile-refresh-btn"
+                  >
+                    {refreshing ? 'Refreshing…' : 'Refresh balance'}
+                  </button>
                 </div>
 
-                <div className="profile-stats">
-                  <div className="profile-stat">
-                    <span className="profile-stat-label">Wallet balance</span>
-                    <span className="profile-stat-value gold">
+                <div className="profile-metrics">
+                  <div className="profile-metric">
+                    <p className="profile-metric-label">Wallet balance</p>
+                    <p className="profile-metric-value accent">
                       ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
-                    </span>
+                    </p>
+                    <p className="profile-metric-hint">Available to play</p>
                   </div>
-                  <div className="profile-stat">
-                    <span className="profile-stat-label">Games played</span>
-                    <span className="profile-stat-value">
-                      {new Set(gameHistory.filter((h) => (h.type || h.kind) === 'LAUNCH').map((h) => h.gameId).filter(Boolean)).size}
-                    </span>
+                  <div className="profile-metric">
+                    <p className="profile-metric-label">Games played</p>
+                    <p className="profile-metric-value">
+                      {new Set(
+                        gameHistory
+                          .filter((h) => (h.type || h.kind) === 'LAUNCH')
+                          .map((h) => h.gameId)
+                          .filter(Boolean),
+                      ).size}
+                    </p>
+                    <p className="profile-metric-hint">Unique titles launched</p>
                   </div>
-                  <div className="profile-stat">
-                    <span className="profile-stat-label">Activity</span>
-                    <span className="profile-stat-value">{gameHistory.length}</span>
+                  <div className="profile-metric">
+                    <p className="profile-metric-label">Total activity</p>
+                    <p className="profile-metric-value">{gameHistory.length}</p>
+                    <p className="profile-metric-hint">Launches & transactions</p>
                   </div>
                 </div>
 
-                <div className="profile-grid">
-                  <div className="side-card profile-details">
-                    <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--violet)]">
-                      ACCOUNT DETAILS
-                    </p>
-                    <dl className="profile-fields">
-                      <div>
+                <div className="profile-layout">
+                  <section className="profile-card">
+                    <div className="profile-card-head">
+                      <h3 className="profile-card-title">Account information</h3>
+                      <p className="profile-card-subtitle">Your registered player details</p>
+                    </div>
+                    <dl className="profile-info-list">
+                      <div className="profile-info-row">
                         <dt>Display name</dt>
                         <dd>{user.username || '—'}</dd>
                       </div>
-                      <div>
-                        <dt>Phone</dt>
-                        <dd>{user.phone || '—'}</dd>
+                      <div className="profile-info-row">
+                        <dt>Phone number</dt>
+                        <dd>{user.phone ? `+91 ${user.phone}` : '—'}</dd>
                       </div>
-                      <div>
+                      <div className="profile-info-row">
+                        <dt>Player ID</dt>
+                        <dd className="profile-mono" title={userId}>
+                          {shortId(userId)}
+                        </dd>
+                      </div>
+                      <div className="profile-info-row">
                         <dt>Currency</dt>
-                        <dd>INR</dd>
+                        <dd>INR (₹)</dd>
                       </div>
-                      <div>
-                        <dt>Status</dt>
-                        <dd className="text-[var(--lime)]">Active</dd>
+                      <div className="profile-info-row">
+                        <dt>Account status</dt>
+                        <dd>
+                          <span className="profile-inline-pill">Active</span>
+                        </dd>
                       </div>
                     </dl>
-                  </div>
+                  </section>
 
-                  <div className="side-card">
-                    <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--gold)]">
-                      QUICK ACTIONS
-                    </p>
-                    <div className="mt-4 flex flex-col gap-2.5">
+                  <section className="profile-card">
+                    <div className="profile-card-head">
+                      <h3 className="profile-card-title">Quick actions</h3>
+                      <p className="profile-card-subtitle">Manage play and account access</p>
+                    </div>
+                    <div className="profile-actions">
                       <button
                         type="button"
-                        className="btn-game btn-play w-full py-2.5 text-[0.65rem]"
+                        className="btn-game btn-play profile-action-btn"
                         onClick={() => selectTab('games')}
                       >
-                        Play Games
+                        Play games
                       </button>
                       <button
                         type="button"
-                        className="btn-game btn-purple w-full py-2.5 text-[0.65rem]"
+                        className="btn-game btn-purple profile-action-btn"
                         onClick={() => selectTab('history')}
                       >
-                        View History
+                        View full history
                       </button>
                       <button
                         type="button"
-                        className="btn-game btn-danger w-full py-2.5 text-[0.65rem]"
+                        className="btn-game btn-danger profile-action-btn"
                         onClick={logout}
                       >
                         <IconLogout />
-                        Logout
+                        Sign out
                       </button>
                     </div>
-                  </div>
+                  </section>
                 </div>
 
-                <div className="side-card">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--violet)]">
-                      RECENT ACTIVITY
-                    </p>
+                <section className="profile-card profile-activity-card">
+                  <div className="profile-card-head profile-card-head-row">
+                    <div>
+                      <h3 className="profile-card-title">Recent activity</h3>
+                      <p className="profile-card-subtitle">Latest wallet and game events</p>
+                    </div>
                     <button
                       type="button"
-                      className="text-xs font-bold text-[var(--lime)] hover:underline"
+                      className="profile-link-btn"
                       onClick={() => selectTab('history')}
                     >
-                      See all
+                      View all
                     </button>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    {recent.length ? (
-                      recent.slice(0, 3).map((row) => {
+
+                  {recentActivity.length ? (
+                    <div className="profile-activity-list">
+                      {recentActivity.map((row) => {
                         const type = String(row.type || row.kind || '').toUpperCase()
+                        const isLaunch = type === 'LAUNCH'
                         const isDebit = type === 'DEBIT' || type === 'BET'
+                        const isCredit = type === 'CREDIT' || type === 'WIN'
+                        const label = isLaunch
+                          ? 'Play'
+                          : isDebit
+                            ? 'Debit'
+                            : isCredit
+                              ? 'Credit'
+                              : type || 'Event'
                         return (
-                        <div
-                          key={`profile-${row.kind}-${row.id}`}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2.5"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold">
-                              {isDebit ? 'DEBIT' : 'CREDIT'} · {row.gameTitle || row.gameId || 'Wallet'}
-                            </p>
-                            <p className="text-xs text-[var(--muted)]">{formatWhen(row.createdAt)}</p>
+                          <div key={`profile-${row.kind}-${row.id}`} className="profile-activity-row">
+                            <div className="profile-activity-main min-w-0">
+                              <span
+                                className={`profile-activity-badge ${
+                                  isLaunch ? 'neutral' : isDebit ? 'debit' : 'credit'
+                                }`}
+                              >
+                                {label}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="profile-activity-title">
+                                  {row.gameTitle || row.gameId || 'Wallet'}
+                                </p>
+                                <p className="profile-activity-meta">{formatWhen(row.createdAt)}</p>
+                              </div>
+                            </div>
+                            <div className="profile-activity-amount">
+                              {isLaunch ? (
+                                <span className="profile-activity-muted">Session</span>
+                              ) : (
+                                <span className={isDebit ? 'is-debit' : 'is-credit'}>
+                                  {isDebit ? '−' : '+'}₹
+                                  {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <p
-                            className={`shrink-0 font-display text-sm font-bold ${
-                              isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'
-                            }`}
-                          >
-                            {isDebit ? '−' : '+'}₹
-                            {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
-                          </p>
-                        </div>
                         )
-                      })
-                    ) : (
-                      <p className="text-sm font-semibold text-[var(--muted)]">No activity yet</p>
-                    )}
-                  </div>
-                </div>
+                      })}
+                    </div>
+                  ) : (
+                    <div className="profile-empty">
+                      <p>No activity yet</p>
+                      <button
+                        type="button"
+                        className="btn-game btn-play profile-empty-btn"
+                        onClick={() => selectTab('games')}
+                      >
+                        Browse games
+                      </button>
+                    </div>
+                  )}
+                </section>
               </div>
             ) : null}
           </section>
@@ -775,7 +865,7 @@ export default function Home() {
           {showLobby ? (
             <aside className="space-y-3">
               <div className="side-card">
-                <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--violet)]">
+                <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--muted)]">
                   RECENT ACTIVITY
                 </p>
                 <div className="mt-3 space-y-2.5">
@@ -792,7 +882,7 @@ export default function Home() {
                       <button
                         key={`side-${row.kind}-${row.id}`}
                         type="button"
-                        className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 px-2.5 py-2 text-left hover:border-[var(--purple)]/40"
+                        className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#333333] bg-[var(--panel-2)] px-2.5 py-2 text-left hover:border-[#444444]"
                         onClick={() => setTab('history')}
                       >
                         <span className="truncate text-xs font-bold">
@@ -818,7 +908,7 @@ export default function Home() {
               </div>
 
               <div className="side-card">
-                <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--gold)]">
+                <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--muted)]">
                   WALLET
                 </p>
                 <p className="font-display mt-2 text-2xl font-extrabold text-[var(--gold)]">

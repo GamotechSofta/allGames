@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import mongoose from 'mongoose'
 import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
+import { GameSession } from '../models/gameSession.model.js'
 import { Player, Wallet, adjustWallet, createPlayer, findPlayerById, findPlayerByPhone, getWallet } from '../store.js'
 
 function normalizePhone(raw) {
@@ -232,24 +233,34 @@ export async function updatePlayerWallet(req, res) {
 /** GET /api/admin/player/list */
 export async function listPlayers(_req, res) {
   try {
-    const players = await Player.find({}).sort({ createdAt: -1 }).lean()
+    const [players, activeUserIds] = await Promise.all([
+      Player.find({}).sort({ createdAt: -1 }).lean(),
+      GameSession.distinct('userId'),
+    ])
+    const activeSet = new Set(activeUserIds.map(String))
     const ids = players.map((p) => p._id)
     const wallets = await Wallet.find({
       $or: [{ userId: { $in: ids } }, { playerId: { $in: ids } }],
     }).lean()
     const walletMap = Object.fromEntries(
-      wallets.map((w) => [String(w.userId || w.playerId), w.balance ?? 0]),
+      wallets.map((w) => [String(w.userId || w.playerId), Number(w.balance) || 0]),
     )
+
+    const data = players.map((p) => ({
+      id: String(p._id),
+      username: p.username,
+      phone: p.phone,
+      balance: walletMap[String(p._id)] ?? 0,
+      createdAt: p.createdAt,
+      isActive: activeSet.has(String(p._id)),
+    }))
 
     return res.json({
       success: true,
-      data: players.map((p) => ({
-        id: String(p._id),
-        username: p.username,
-        phone: p.phone,
-        balance: walletMap[String(p._id)] ?? 0,
-        createdAt: p.createdAt,
-      })),
+      data,
+      meta: {
+        activePlayers: data.filter((p) => p.isActive).length,
+      },
     })
   } catch (err) {
     console.error(err)

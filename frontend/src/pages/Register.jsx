@@ -34,7 +34,7 @@ export default function Register() {
         <div className="flex items-center gap-3">
           <img src={siteLogo} alt="AllGames" className="site-logo" />
           <div>
-            <p className="font-display text-[0.7rem] font-bold tracking-[0.35em] text-[var(--lime)]">
+            <p className="font-display text-[0.7rem] font-bold tracking-[0.35em] text-[var(--muted)]">
               ALLGAMES
             </p>
             <h1 className="font-display mt-1 text-2xl font-bold tracking-wide">Create Account</h1>
@@ -98,7 +98,7 @@ export default function Register() {
 
         <p className="text-center text-sm font-semibold text-[var(--muted)]">
           Already have an account?{' '}
-          <Link to="/login" className="text-[var(--lime)] hover:underline">
+          <Link to="/login" className="text-[var(--accent)] hover:underline">
             Sign in
           </Link>
         </p>
