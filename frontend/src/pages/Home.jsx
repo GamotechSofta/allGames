@@ -1672,10 +1672,9 @@ export default function Home() {
           {showLobby ? (
             <aside className="space-y-3.5">
               {/* Quick Wallet & Cashier Card */}
-              <div className="side-card">
-
-
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="142" height="125" viewBox="0 0 142 125">
+              <div className="side-card grid grid-cols-2 gap-2 place-items-center py-4">
+                <div className="flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="80" viewBox="0 0 142 125">
                   <defs>
                     <path id="a" d="M.22.35h21.59v24.544H.22z" />
                     <path id="c" d="M.272.195h12.557v23.567H.272z" />
@@ -1700,6 +1699,65 @@ export default function Home() {
                     <path fill="#E50539" d="M113.692 26.827l-.826-1.753s-.15-.262.19-.4c.027-.012.054-.025.088-.031 0 0 3.419-.112 4.489.081.568.106.589.293.589.293l-4.53 1.81zm4.692-2.558c-1.428-.294-4.13-.313-5.748-.219-.068 0-.115 0-.176.006-.034.007-.075.013-.115.025a.3.3 0 0 0-.102.063c-.183.125-.298.368-.217.555a56.269 56.269 0 0 0 2.472 5.08c.122.231.48.269.738.169a.788.788 0 0 0 .149-.087c1.38-1.186 2.68-2.865 3.5-4.531.25-.524.095-.937-.5-1.061zM101.038 24s-.612 2.533-1.575 5.458l-1.784-2.259-1.446.659 2.63 3.335c-.82 2.25-1.81 4.488-2.863 5.807l2.636-1.2c.6-.558 1.085-1.686 1.462-3.038l1.448 1.837 1.454-.663-2.455-3.109c.531-2.81.683-5.867.493-6.827M90.25 118h-38.5c-.962 0-1.75-.9-1.75-2s.788-2 1.75-2h38.5c.962 0 1.75.9 1.75 2s-.788 2-1.75 2M83.249 125H58.75c-.963 0-1.751-.9-1.751-2s.788-2 1.751-2H83.25c.963 0 1.751.9 1.751 2s-.788 2-1.751 2" />
                   </g>
                 </svg>
+                <span className="font-display text-xs font-bold text-white tracking-wide uppercase">Aviator Game</span>
+                </div>
+                
+                <div className="flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="80" viewBox="0 0 100 100" className="mx-auto drop-shadow-lg">
+                  <rect x="0" y="0" width="100" height="100" rx="15" fill="#fff" />
+                  
+                  <rect x="8" y="8" width="35" height="35" rx="6" fill="#E50539" />
+                  <rect x="15" y="15" width="21" height="21" rx="4" fill="#fff" />
+                  <circle cx="20" cy="20" r="3" fill="#E50539" />
+                  <circle cx="31" cy="20" r="3" fill="#E50539" />
+                  <circle cx="20" cy="31" r="3" fill="#E50539" />
+                  <circle cx="31" cy="31" r="3" fill="#E50539" />
+
+                  <rect x="57" y="8" width="35" height="35" rx="6" fill="#00A859" />
+                  <rect x="64" y="15" width="21" height="21" rx="4" fill="#fff" />
+                  <circle cx="69" cy="20" r="3" fill="#00A859" />
+                  <circle cx="80" cy="20" r="3" fill="#00A859" />
+                  <circle cx="69" cy="31" r="3" fill="#00A859" />
+                  <circle cx="80" cy="31" r="3" fill="#00A859" />
+
+                  <rect x="8" y="57" width="35" height="35" rx="6" fill="#0072CE" />
+                  <rect x="15" y="64" width="21" height="21" rx="4" fill="#fff" />
+                  <circle cx="20" cy="69" r="3" fill="#0072CE" />
+                  <circle cx="31" cy="69" r="3" fill="#0072CE" />
+                  <circle cx="20" cy="80" r="3" fill="#0072CE" />
+                  <circle cx="31" cy="80" r="3" fill="#0072CE" />
+
+                  <rect x="57" y="57" width="35" height="35" rx="6" fill="#FFC90E" />
+                  <rect x="64" y="64" width="21" height="21" rx="4" fill="#fff" />
+                  <circle cx="69" cy="69" r="3" fill="#FFC90E" />
+                  <circle cx="80" cy="69" r="3" fill="#FFC90E" />
+                  <circle cx="69" cy="80" r="3" fill="#FFC90E" />
+                  <circle cx="80" cy="80" r="3" fill="#FFC90E" />
+
+                  <polygon points="50,50 43,43 57,43" fill="#00A859" />
+                  <polygon points="50,50 57,43 57,57" fill="#FFC90E" />
+                  <polygon points="50,50 57,57 43,57" fill="#0072CE" />
+                  <polygon points="50,50 43,57 43,43" fill="#E50539" />
+                  
+                  <rect x="43" y="8" width="14" height="35" fill="#f1f5f9" />
+                  <rect x="43" y="15" width="14" height="7" fill="#00A859" opacity="0.3" />
+                  <rect x="43" y="29" width="14" height="14" fill="#00A859" opacity="0.3" />
+                  
+                  <rect x="43" y="57" width="14" height="35" fill="#f1f5f9" />
+                  <rect x="43" y="57" width="14" height="14" fill="#0072CE" opacity="0.3" />
+                  <rect x="43" y="78" width="14" height="7" fill="#0072CE" opacity="0.3" />
+
+                  <rect x="8" y="43" width="35" height="14" fill="#f1f5f9" />
+                  <rect x="15" y="43" width="7" height="14" fill="#E50539" opacity="0.3" />
+                  <rect x="29" y="43" width="14" height="14" fill="#E50539" opacity="0.3" />
+
+                  <rect x="57" y="43" width="35" height="14" fill="#f1f5f9" />
+                  <rect x="57" y="43" width="14" height="14" fill="#FFC90E" opacity="0.3" />
+                  <rect x="78" y="43" width="7" height="14" fill="#FFC90E" opacity="0.3" />
+                  
+                </svg>
+                <span className="font-display text-xs font-bold text-white tracking-wide uppercase">Ludo Game</span>
+                </div>
 
 
 
