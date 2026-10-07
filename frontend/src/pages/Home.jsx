@@ -919,7 +919,7 @@ export default function Home() {
                 </div>
 
                 <div className="game-card-meta-row">
-                  <div className="game-card-meta-live">
+                  <div className="game-card-meta-live text-sx">
                     <span className="game-card-meta-dot" />
                     <span>{1200 + index * 340} playing</span>
                   </div>
@@ -1161,7 +1161,7 @@ export default function Home() {
         <div className="mobile-topbar">
           <div className="flex items-center gap-2 min-w-0">
             <img src={siteLogo} alt="AllGames" className="site-logo site-logo-sm" />
-          
+
           </div>
           <div className="mobile-topbar-right">
             <button
@@ -1672,8 +1672,8 @@ export default function Home() {
           {showLobby ? (
             <aside className="space-y-3.5">
               {/* Quick Wallet & Cashier Card */}
-              <div className="side-card grid grid-cols-2 gap-2 place-items-center py-4">
-                <div className="flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
+              <div className=" place-items-center ">
+                {/* <div className="flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
                   <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="80" viewBox="0 0 142 125">
                   <defs>
                     <path id="a" d="M.22.35h21.59v24.544H.22z" />
@@ -1757,10 +1757,8 @@ export default function Home() {
                   
                 </svg>
                 <span className="font-display text-xs font-bold text-white tracking-wide uppercase">Ludo Game</span>
-                </div>
-
-
-
+                </div> */}
+                <img src="https://official-aviator-game.com/wp-content/uploads/2024/07/1-how-to-start-play-aviator-1024x720.webp" alt="" className='border border-[var(--muted)]/20 bg-[var(--bg-body)]/80 backdrop-blur-sm rounded-lg shadow-sm p-2'/>
               </div>
 
               {/* Recent Activity Mini-Feed */}
