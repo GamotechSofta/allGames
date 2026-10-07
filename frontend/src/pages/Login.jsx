@@ -82,7 +82,7 @@ export default function Login() {
           {busy ? 'Signing in…' : 'Enter Lobby'}
         </button>
 
-        <p className="text-center text-sm font-semibold text-[var(--muted)]">
+        <p className="text-center text-sm font-semibold text-[var(--muted)] hidden">
           New here?{' '}
           <Link to="/register" className="text-[var(--accent)] hover:underline">
             Create account
