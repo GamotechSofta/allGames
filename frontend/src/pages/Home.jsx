@@ -1091,7 +1091,7 @@ export default function Home() {
 
         <div className="dash-brand">
           <img src={siteLogo} alt="AllGames" className="site-logo" />
-          <div>
+          <div className="hidden sm:block">
             <p className="dash-brand-title">ALLGAMES</p>
             <span className="text-[0.62rem] font-bold uppercase tracking-wider text-amber-400">VIP Casino</span>
           </div>
@@ -1161,13 +1161,13 @@ export default function Home() {
         <div className="mobile-topbar">
           <div className="flex items-center gap-2 min-w-0">
             <img src={siteLogo} alt="AllGames" className="site-logo site-logo-sm" />
-            <p className="dash-brand-title truncate">ALLGAMES</p>
+          
           </div>
           <div className="mobile-topbar-right">
             <button
               type="button"
               onClick={() => setDepositOpen(true)}
-              className="btn-game btn-play px-2.5 py-1 text-[0.6rem] font-bold"
+              className="btn-game btn-play px-2.5 py-1 text-[0.8rem] font-bold"
             >
               + Add
             </button>

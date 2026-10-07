@@ -1694,9 +1694,17 @@ body {
 
 .category-pills-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+}
+
+.category-pills-list::-webkit-scrollbar {
+  display: none;
 }
 
 .cat-pill {
@@ -1714,6 +1722,15 @@ body {
   cursor: pointer;
   transition: all 0.18s ease;
   backdrop-filter: blur(8px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .cat-pill {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+  }
 }
 
 .cat-pill:hover {
