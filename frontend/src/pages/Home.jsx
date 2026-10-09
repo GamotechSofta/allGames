@@ -3,24 +3,144 @@ import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-route
 import { useAuth } from '../AuthContext'
 import { fetchGames, fetchGameHistory, launchGame, creditWallet } from '../api'
 import siteLogo from '../assets/image.png'
+import HeroSection from '../components/HeroSection'
+import tpClassic from '../assets/tp_classic.jpg'
+import tpAk47 from '../assets/tp_ak47.jpg'
+import tpMuflis from '../assets/tp_muflis.jpg'
+import tpFlipper from '../assets/tp_flipper.jpg'
+import tpJhandu from '../assets/tp_jhandu.jpg'
 
 /** Public CDN images (Unsplash / Microsoft CDN) for lobby art */
 const IMAGES = {
-  teenpatti: 'https://images.unsplash.com/photo-1541278107931-e006523892df?auto=format&fit=crop&w=1200&q=80',
+  teenpatti: tpClassic,
+  ak47: tpAk47,
+  muflis: tpMuflis,
+  flipper: tpFlipper,
+  jhandu: tpJhandu,
   ludo: 'https://store-images.s-microsoft.com/image/apps.38011.13964317340864868.4c21ecf1-2804-40c6-bd9e-a2efd241f30b.7fb161ca-d8f2-4e3a-9f2b-4992fa436cd1?q=90&w=1200&h=600',
-  bonus: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=1200&q=80',
-  jackpot: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=80',
-  defaultGame: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80',
+  bonus: tpAk47,
+  jackpot: tpMuflis,
+  defaultGame: tpClassic,
+}
+
+/** Teen Patti Variants Catalog */
+export const TEEN_PATTI_VARIANTS = [
+  {
+    id: 'classic',
+    gameId: 'TEENPATTI',
+    name: 'Teen Patti Classic',
+    title: 'Teen Patti Classic',
+    shortTitle: 'Classic',
+    tag: 'CLASSIC',
+    tagClass: 'tag-gold',
+    summary: 'Standard Teen Patti rules and table game.',
+    rule: 'Standard hierarchy: Trail (Trio) > Pure Sequence > Sequence > Color > Pair > High Card. Highest hand takes the pot.',
+    badge: '👑 Classic Rules',
+    badgeColor: '#fbbf24',
+    badgeBg: 'rgba(251, 191, 36, 0.15)',
+    icon: '👑',
+    chips: '3 Cards • Trail • Sequence',
+    launchUrl: 'https://www.doormart.shop/public?variant=classic',
+    image: tpClassic,
+    players: '2,420',
+  },
+  {
+    id: 'ak47',
+    gameId: 'TEENPATTI_AK47',
+    name: 'Teen Patti AK47',
+    title: 'Teen Patti AK47',
+    shortTitle: 'AK47',
+    tag: 'AK47 WILD',
+    tagClass: 'tag-orange',
+    summary: 'A, K, 4, and 7 are jokers.',
+    rule: 'Any Ace, King, 4, or 7 card becomes a Joker (wild card) that substitutes for any rank or suit to complete your highest hand.',
+    badge: '🔥 A, K, 4, 7 Jokers',
+    badgeColor: '#f97316',
+    badgeBg: 'rgba(249, 115, 22, 0.15)',
+    icon: '🔥',
+    chips: 'A • K • 4 • 7 Jokers',
+    launchUrl: 'https://www.doormart.shop/public?variant=ak47',
+    image: tpAk47,
+    players: '1,890',
+  },
+  {
+    id: 'muflis',
+    gameId: 'TEENPATTI_MUFLIS',
+    name: 'Teen Patti Muflis',
+    title: 'Teen Patti Muflis',
+    shortTitle: 'Muflis',
+    tag: 'LOWBALL',
+    tagClass: 'tag-cyan',
+    summary: 'Lowest hand wins.',
+    rule: 'Opposite rules (Lowball). A trail of AAA is the worst hand; the lowest high-card (5-3-2 unsuited) is the champion winning hand.',
+    badge: '🔄 Lowest Hand Wins',
+    badgeColor: '#06b6d4',
+    badgeBg: 'rgba(6, 182, 212, 0.15)',
+    icon: '🔄',
+    chips: 'Lowest Hand Wins Pot',
+    launchUrl: 'https://www.doormart.shop/public?variant=muflis',
+    image: tpMuflis,
+    players: '1,540',
+  },
+  {
+    id: 'flipper',
+    gameId: 'TEENPATTI_FLIPPER',
+    name: 'Teen Patti Flipper',
+    title: 'Teen Patti Flipper',
+    shortTitle: 'Flipper',
+    tag: '4-CARDS',
+    tagClass: 'tag-blue',
+    summary: '4 cards dealt; public and folded game.',
+    rule: 'Each player receives 4 cards; public & folded reserve cards dynamically add joker ranks with thrilling flip action.',
+    badge: '⚡ 4-Card Twist',
+    badgeColor: '#3b82f6',
+    badgeBg: 'rgba(59, 130, 246, 0.15)',
+    icon: '⚡',
+    chips: '4 Cards • Reserve Flips',
+    launchUrl: 'https://www.doormart.shop/public?variant=flipper',
+    image: tpFlipper,
+    players: '1,280',
+  },
+  {
+    id: 'jhandu',
+    gameId: 'TEENPATTI_JHANDU',
+    name: 'Teen Patti Jhandu',
+    title: 'Teen Patti Jhandu',
+    shortTitle: 'Jhandu',
+    tag: 'CYCLE JOKER',
+    tagClass: 'tag-purple',
+    summary: 'Shared jokers unlock by cycle.',
+    rule: 'Shared jokers unlock round by round in cycles. Sideshow and final show unlock as table cycles advance.',
+    badge: '🎯 Cycle Jokers',
+    badgeColor: '#a855f7',
+    badgeBg: 'rgba(168, 85, 247, 0.15)',
+    icon: '🎯',
+    chips: 'Cycle Jokers • Delayed Show',
+    launchUrl: 'https://www.doormart.shop/public?variant=jhandu',
+    image: tpJhandu,
+    players: '1,110',
+  },
+]
+
+function getVariantMeta(game) {
+  if (!game) return null
+  const key = String(game.gameId || game.title || game.name || '').toLowerCase()
+  if (key.includes('ak47')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'ak47')
+  if (key.includes('muflis')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'muflis')
+  if (key.includes('flipper') || key.includes('fliiper')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'flipper')
+  if (key.includes('jhandu')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'jhandu')
+  if (key.includes('classic') || key === 'teenpatti') return TEEN_PATTI_VARIANTS.find((v) => v.id === 'classic')
+  return null
 }
 
 const LIVE_WINNERS = [
-  { name: 'Rohit K.', game: 'Teen Patti', amount: 18500, time: 'Just now' },
-  { name: 'Sneha P.', game: 'PotLudo', amount: 6200, time: '2m ago' },
-  { name: 'Vikram M.', game: 'Teen Patti', amount: 32000, time: '5m ago' },
+  { name: 'Rohit K.', game: 'Teen Patti Classic', amount: 18500, time: 'Just now' },
+  { name: 'Sneha P.', game: 'Teen Patti AK47', amount: 26200, time: '2m ago' },
+  { name: 'Vikram M.', game: 'Teen Patti Muflis', amount: 32000, time: '5m ago' },
   { name: 'Ankit D.', game: 'PotLudo', amount: 9500, time: '8m ago' },
-  { name: 'Pooja R.', game: 'Teen Patti', amount: 14200, time: '11m ago' },
-  { name: 'Karan S.', game: 'PotLudo', amount: 8000, time: '16m ago' },
-  { name: 'VIP #4092', game: 'Teen Patti', amount: 50000, time: '20m ago' },
+  { name: 'Pooja R.', game: 'Teen Patti Flipper', amount: 14200, time: '11m ago' },
+  { name: 'Karan S.', game: 'Teen Patti Jhandu', amount: 18000, time: '16m ago' },
+  { name: 'VIP #4092', game: 'Teen Patti AK47', amount: 50000, time: '20m ago' },
 ]
 
 function shortId(id) {
@@ -63,15 +183,24 @@ function isWalletHistoryRow(row) {
 }
 
 function gameImage(game) {
-  if (game?.image) return game.image
   const key = String(game?.gameId || game?.title || game?.name || '').toLowerCase()
-  if (key.includes('teen') || key.includes('patti')) return IMAGES.teenpatti
+  if (key.includes('ak47')) return IMAGES.ak47
+  if (key.includes('muflis')) return IMAGES.muflis
+  if (key.includes('flipper') || key.includes('fliiper')) return IMAGES.flipper
+  if (key.includes('jhandu')) return IMAGES.jhandu
+  if (key.includes('classic') || key === 'teenpatti' || key.includes('teen') || key.includes('patti')) return IMAGES.teenpatti
+  if (game?.image && String(game.image).startsWith('http')) return game.image
   if (key.includes('ludo')) return IMAGES.ludo
   return IMAGES.defaultGame
 }
 
 function gameTag(game, index) {
-  const key = String(game?.gameId || '').toLowerCase()
+  const key = String(game?.gameId || game?.title || game?.name || '').toLowerCase()
+  if (key.includes('ak47')) return { label: 'AK47 WILD', className: 'tag-orange' }
+  if (key.includes('muflis')) return { label: 'LOWBALL', className: 'tag-cyan' }
+  if (key.includes('flipper') || key.includes('fliiper')) return { label: '4-CARDS', className: 'tag-blue' }
+  if (key.includes('jhandu')) return { label: 'CYCLE JOKER', className: 'tag-purple' }
+  if (key.includes('classic') || key === 'teenpatti') return { label: 'CLASSIC', className: 'tag-gold' }
   if (key.includes('teen') || key.includes('patti') || index === 0) {
     return { label: 'HOT', className: 'tag-hot' }
   }
@@ -271,13 +400,13 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false)
 
   // Interactive controls state
-  const [currentBanner, setCurrentBanner] = useState(0)
-  const [bannerPaused, setBannerPaused] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
   const [depositOpen, setDepositOpen] = useState(false)
   const [depositAmount, setDepositAmount] = useState(500)
   const [depositLoading, setDepositLoading] = useState(false)
+  const [variantModalOpen, setVariantModalOpen] = useState(false)
+  const [selectedVariantDetail, setSelectedVariantDetail] = useState(null)
   const [toastMessage, setToastMessage] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const searchInputRef = useRef(null)
@@ -365,14 +494,6 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
-  // Auto-slide hero banners every 6 seconds unless paused
-  useEffect(() => {
-    if (bannerPaused) return
-    const timer = setInterval(() => {
-      setCurrentBanner((prev) => (prev + 1) % 4)
-    }, 6000)
-    return () => clearInterval(timer)
-  }, [bannerPaused])
 
   // Keyboard shortcut Ctrl+K or / to focus search
   useEffect(() => {
@@ -458,10 +579,33 @@ export default function Home() {
     // Category filter
     if (activeCategory === 'favs') {
       result = result.filter((g) => favorites.includes(g.gameId || g.gameCode))
+    } else if (activeCategory === 'teenpatti') {
+      result = result.filter((g) => {
+        const k = String(g.gameId || g.title || g.name || '').toLowerCase()
+        return (
+          k.includes('teen') ||
+          k.includes('patti') ||
+          k.includes('ak47') ||
+          k.includes('muflis') ||
+          k.includes('flipper') ||
+          k.includes('fliiper') ||
+          k.includes('jhandu')
+        )
+      })
     } else if (activeCategory === 'cards') {
       result = result.filter((g) => {
         const k = String(g.gameId || g.title || g.name || '').toLowerCase()
-        return k.includes('teen') || k.includes('patti') || k.includes('card') || k.includes('poker')
+        return (
+          k.includes('teen') ||
+          k.includes('patti') ||
+          k.includes('card') ||
+          k.includes('poker') ||
+          k.includes('ak47') ||
+          k.includes('muflis') ||
+          k.includes('flipper') ||
+          k.includes('fliiper') ||
+          k.includes('jhandu')
+        )
       })
     } else if (activeCategory === 'board') {
       result = result.filter((g) => {
@@ -469,7 +613,7 @@ export default function Home() {
         return k.includes('ludo') || k.includes('dice') || k.includes('pot')
       })
     } else if (activeCategory === 'hot') {
-      result = result.slice(0, 6)
+      result = result.slice(0, 8)
     }
 
     // Search query filter
@@ -489,7 +633,31 @@ export default function Home() {
   useEffect(() => {
     if (!userId) return
     fetchGames()
-      .then((res) => setGames(res.data || []))
+      .then((res) => {
+        const remoteGames = res.data || []
+        const merged = [...remoteGames]
+        for (const v of TEEN_PATTI_VARIANTS) {
+          const exists = merged.some(
+            (g) =>
+              g.gameId === v.gameId ||
+              (v.gameId === 'TEENPATTI' && g.gameId === 'TEENPATTI_CLASSIC') ||
+              String(g.title || g.name || '').toLowerCase().includes(v.id),
+          )
+          if (!exists) {
+            merged.push({
+              _id: `variant_${v.id}`,
+              gameId: v.gameId,
+              name: v.name,
+              title: v.title,
+              provider: 'DIRECT',
+              status: 'active',
+              image: v.image,
+              launchUrl: v.launchUrl,
+            })
+          }
+        }
+        setGames(merged)
+      })
       .catch((err) => setError(err.message))
     refreshBalance().catch(() => { })
     fetchGameHistory(40)
@@ -570,14 +738,16 @@ export default function Home() {
     }
   }
 
-  async function onPlay(game) {
+  async function onPlay(game, extraOptions = {}) {
     if (launching) return
     const gameId = game.gameId || game.gameCode
+    const meta = getVariantMeta(game)
+    const variant = extraOptions?.variant || meta?.id || ''
     setError('')
     setLaunching(gameId)
     try {
       await refreshBalance()
-      const res = await launchGame(gameId)
+      const res = await launchGame(gameId, variant ? { variant } : {})
       const url = res.launchUrl
       if (!url) throw new Error('Launch URL missing from response')
       sessionStorage.setItem('allgames_tab', 'games')
@@ -585,7 +755,7 @@ export default function Home() {
 
       const playSession = {
         launchUrl: url,
-        gameName: game.title || game.name || gameId,
+        gameName: game.title || game.name || (meta ? meta.name : gameId),
         sessionId: res.sessionId || '',
         returnTab: 'games',
         openMode: 'iframe',
@@ -616,169 +786,7 @@ export default function Home() {
     return k.includes('teen') || k.includes('patti')
   }) || games[0]
 
-  const ludoGame = games.find((g) => {
-    const k = String(g.gameId || g.title || g.name || '').toLowerCase()
-    return k.includes('ludo') || k.includes('pot')
-  }) || games[1] || games[0]
 
-  const HERO_BANNERS = [
-    {
-      id: 0,
-      pill: '🔥 LIVE TOURNAMENT • 50X MULTIPLIER',
-      pillClass: 'hero-pill-fire',
-      title: 'Teen Patti Royal Deluxe',
-      desc: 'Experience India’s premier multiplayer card arena. Certified RNG, high-stakes private tables, and lightning withdrawals.',
-      image: IMAGES.teenpatti,
-      stats: [
-        { label: '1,480 Active Players', color: '#86efac' },
-        { label: '⭐ 4.9 Rating', color: '#fbbf24' },
-        { label: 'Stakes: ₹10 – ₹50,000', color: '#e5e7eb' },
-      ],
-      primaryLabel: 'Play Teen Patti',
-      primaryAction: () => (teenPattiGame ? onPlay(teenPattiGame) : selectTab('games')),
-      secondaryLabel: 'Explore Card Games',
-      secondaryAction: () => {
-        setActiveCategory('cards')
-        selectTab('games')
-      },
-    },
-    {
-      id: 1,
-      pill: '🎲 INSTANT MULTIPLAYER • ₹1,00,000 PRIZE POOL',
-      pillClass: 'hero-pill-emerald',
-      title: 'PotLudo Championship Arena',
-      desc: 'Roll the dice, knock opponents out, and sprint your tokens home! Compete 1-on-1 or join 4-player high reward tables.',
-      image: IMAGES.ludo,
-      stats: [
-        { label: '920 Playing Now', color: '#86efac' },
-        { label: '5-Minute Fast Match', color: '#60a5fa' },
-        { label: 'Instant Cash Drops', color: '#fbbf24' },
-      ],
-      primaryLabel: 'Play PotLudo 🎲',
-      primaryAction: () => (ludoGame ? onPlay(ludoGame) : selectTab('games')),
-      secondaryLabel: 'How to Play',
-      secondaryAction: () => selectTab('games'),
-    },
-    {
-      id: 2,
-      pill: '👑 VIP RECHARGE • 100% MATCH BOOST',
-      pillClass: 'hero-pill-gold',
-      title: '100% Deposit Bonus + 5% Daily Rebate',
-      desc: 'Top up your wallet today to unlock elite high-roller tables, VIP tier progress, and zero-fee instant settlements.',
-      image: IMAGES.bonus,
-      stats: [
-        { label: 'Up to ₹5,000 Match', color: '#fbbf24' },
-        { label: 'Zero Fee UPI', color: '#86efac' },
-        { label: '100% Safe & Secure', color: '#e5e7eb' },
-      ],
-      primaryLabel: 'Add Cash & Claim Bonus +',
-      primaryAction: () => setDepositOpen(true),
-      secondaryLabel: 'View VIP Tiers',
-      secondaryAction: () => selectTab('wallet'),
-    },
-    {
-      id: 3,
-      pill: '💰 PROGRESSIVE MEGA JACKPOT • ACTIVE',
-      pillClass: 'hero-pill-violet',
-      title: `Mega Jackpot: ₹${jackpotPool.toLocaleString('en-IN')}`,
-      desc: 'Every game played builds the grand vault pool. Any lucky winning hand can trigger the life-changing grand jackpot!',
-      image: IMAGES.jackpot,
-      stats: [
-        { label: 'Live Pool Counting', color: '#c4b5fd' },
-        { label: '🏆 Last Win: ₹4,20,000', color: '#86efac' },
-        { label: 'Dropping Today', color: '#fca5a5' },
-      ],
-      primaryLabel: 'Spin & Win Jackpot',
-      primaryAction: () => (teenPattiGame ? onPlay(teenPattiGame) : selectTab('games')),
-      secondaryLabel: 'View Statement',
-      secondaryAction: () => selectTab('history'),
-    },
-  ]
-
-  const activeBanner = HERO_BANNERS[currentBanner]
-
-  function renderHeroSection() {
-    return (
-      <section
-        className="hero-carousel-container"
-        onMouseEnter={() => setBannerPaused(true)}
-        onMouseLeave={() => setBannerPaused(false)}
-        aria-label="Promotions and Featured Games"
-      >
-        <div
-          className="hero-slide"
-          style={{ backgroundImage: `url(${activeBanner.image})` }}
-        >
-          <div className="hero-slide-overlay" />
-          <div className="hero-slide-content">
-            <span className={`hero-pill ${activeBanner.pillClass}`}>
-              {activeBanner.pill}
-            </span>
-            <h2 className="hero-title">{activeBanner.title}</h2>
-            <p className="hero-desc">{activeBanner.desc}</p>
-
-            <div className="hero-stats-row">
-              {activeBanner.stats.map((st, i) => (
-                <div key={i} className="hero-stat-item">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: st.color }} />
-                  <span style={{ color: st.color }}>{st.label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="hero-actions-row">
-              <button
-                type="button"
-                className="btn-hero-play"
-                onClick={activeBanner.primaryAction}
-              >
-                {/* <IconZap /> */}
-                <span>{activeBanner.primaryLabel}</span>
-              </button>
-              <button
-                type="button"
-                className="btn-hero-alt"
-                onClick={activeBanner.secondaryAction}
-              >
-                <span>{activeBanner.secondaryLabel}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Nav Arrows */}
-          <button
-            type="button"
-            className="hero-nav-btn hero-nav-prev"
-            aria-label="Previous slide"
-            onClick={() => setCurrentBanner((prev) => (prev === 0 ? HERO_BANNERS.length - 1 : prev - 1))}
-          >
-            <IconChevronLeft />
-          </button>
-          <button
-            type="button"
-            className="hero-nav-btn hero-nav-next"
-            aria-label="Next slide"
-            onClick={() => setCurrentBanner((prev) => (prev + 1) % HERO_BANNERS.length)}
-          >
-            <IconChevronRight />
-          </button>
-
-          {/* Dots Indicator */}
-          <div className="hero-dots-bar">
-            {HERO_BANNERS.map((b, idx) => (
-              <button
-                key={b.id}
-                type="button"
-                aria-label={`Slide ${idx + 1}`}
-                className={`hero-dot ${idx === currentBanner ? 'is-active' : ''}`}
-                onClick={() => setCurrentBanner(idx)}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-    )
-  }
 
   function renderWinnersMarquee() {
     return (
@@ -813,6 +821,15 @@ export default function Home() {
           >
             <span>🔥 All Games</span>
             <span className="cat-count">{games.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeCategory === 'teenpatti'}
+            className={`cat-pill ${activeCategory === 'teenpatti' ? 'is-active' : ''}`}
+            onClick={() => setActiveCategory('teenpatti')}
+          >
+            <span>🃏 Teen Patti</span>
           </button>
           <button
             type="button"
@@ -883,67 +900,97 @@ export default function Home() {
   function renderGameCards() {
     return (
       <>
-        <div className="game-grid grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {/* Subtle glowing red bar matching reference design header */}
+        <div className="w-14 h-1 rounded-full bg-red-600/80 mx-auto mb-3.5 shadow-[0_0_12px_rgba(239,68,68,0.75)]" />
+
+        <div className="game-grid grid grid-cols-1 gap-3 sm:gap-3.5">
           {filteredGames.map((game, index) => {
             const id = game.gameId || game.gameCode
             const busy = launching === id
             const title = game.title || game.name || id
-            const tag = gameTag(game, index)
+            const variantMeta = getVariantMeta(game)
             const isFav = favorites.includes(id)
-            const provider = game.provider || 'GAP EXCLUSIVE'
+            const cardImg = variantMeta?.image || gameImage(game)
+            const displayTitle = variantMeta?.shortTitle || title
+            const displaySubtitle =
+              variantMeta?.summary ||
+              game.summary ||
+              game.description ||
+              'Standard Teen Patti rules and table game.'
 
             return (
-              <article key={game._id || id} className="game-card group">
-                <button
-                  type="button"
-                  className={`game-card-fav-btn ${isFav ? 'is-fav' : ''}`}
-                  aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleFavorite(id)
-                  }}
-                >
-                </button>
-
-                <div className="game-card-art">
-                  <img src={gameImage(game)} alt={title} loading="lazy" />
-                  <span className={`tag ${tag.className}`}>{tag.label}</span>
-                  <div className="absolute bottom-3 left-3 z-[1] right-3">
-                    <span className="text-[0.62rem] font-bold uppercase tracking-wider text-amber-300 drop-shadow">
-                      {provider}
-                    </span>
-                    <h4 className="font-display text-lg sm:text-xl font-extrabold tracking-wide drop-shadow truncate">
-                      {title}
-                    </h4>
-                  </div>
+              <article
+                key={game._id || id}
+                className="tp-luxury-card group"
+                onClick={() => onPlay(game, variantMeta ? { variant: variantMeta.id } : {})}
+              >
+                {/* Translucent Poker Club Watermark */}
+                <div className="tp-card-watermark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2a4 4 0 0 0-3.8 2.8A4.5 4.5 0 0 0 4 9.2c0 2.2 1.6 4.1 3.8 4.4a2 2 0 0 0 .7 0c-.5 1.5-1.5 3.4-3.5 4.4h14c-2-1-3-2.9-3.5-4.4.2 0 .5 0 .7 0 2.2-.3 3.8-2.2 3.8-4.4a4.5 4.5 0 0 0-4.2-4.4A4 4 0 0 0 12 2z" />
+                  </svg>
                 </div>
 
-                <div className="game-card-meta-row">
-                  <div className="game-card-meta-live text-sx">
-                    <span className="game-card-meta-dot" />
-                    <span>{1200 + index * 340} playing</span>
-                  </div>
-                  <span className="text-amber-400 font-bold">⭐ 4.9</span>
+                {/* Left: 3D Artwork (Aces, Royal Crown, Chips on Red Saucer Disc) */}
+                <div className="tp-card-visual">
+                  <img
+                    src={cardImg}
+                    alt={displayTitle}
+                    loading="lazy"
+                  />
                 </div>
 
-                <div className="px-3 sm:px-4 pb-3.5 pt-1">
+                {/* Center: Title & Description */}
+                <div className="tp-card-body">
+                  <div className="flex items-center gap-2">
+                    <h3 className="tp-card-title">
+                      {displayTitle}
+                    </h3>
+                    {isFav ? (
+                      <span className="text-amber-400 text-xs shrink-0" title="In Favorites">⭐</span>
+                    ) : null}
+                  </div>
+                  <p className="tp-card-subtitle">
+                    {displaySubtitle}
+                  </p>
+                </div>
+
+                {/* Right: Actions */}
+                <div className="tp-card-actions">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (variantMeta) {
+                        setSelectedVariantDetail(variantMeta)
+                        setVariantModalOpen(true)
+                      } else {
+                        toggleFavorite(id)
+                      }
+                    }}
+                    className="tp-chevron-circle"
+                    aria-label={variantMeta ? `${variantMeta.name} Rules` : 'More details'}
+                    title={variantMeta ? `${variantMeta.name} Rules` : 'More details'}
+                  >
+                    <IconChevronRight />
+                  </button>
+
                   <button
                     type="button"
                     disabled={Boolean(launching)}
-                    onClick={() => onPlay(game)}
-                    className="btn-game btn-play w-full py-2.5 text-xs font-bold tracking-wider"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPlay(game, variantMeta ? { variant: variantMeta.id } : {})
+                    }}
+                    className="tp-play-btn"
                   >
-                    {busy ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <IconRefresh spinning={true} />
-                        <span>Launching…</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5">
-
-                        <span>Play Now</span>
-                      </span>
-                    )}
+                    <span className="tp-play-icon-circle">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="8,5 19,12 8,19" />
+                      </svg>
+                    </span>
+                    <span>{busy ? 'Launching…' : 'Play Now'}</span>
+                    <span className="tp-play-chevron">›</span>
                   </button>
                 </div>
               </article>
@@ -976,6 +1023,126 @@ export default function Home() {
           </div>
         ) : null}
       </>
+    )
+  }
+
+  function renderVariantModal() {
+    if (!variantModalOpen) return null
+
+    return (
+      <div
+        className="variant-modal-backdrop"
+        onClick={() => setVariantModalOpen(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Teen Patti Variants Guide"
+      >
+        <div
+          className="variant-modal-content p-4 sm:p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🃏</span>
+                <h3 className="font-display text-xl sm:text-2xl font-black text-white tracking-wide">
+                  Teen Patti Table Variants Guide
+                </h3>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Explore the special rules of Classic, AK47, Muflis, Flipper, and Jhandu. Tap any variant to play instantly!
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setVariantModalOpen(false)}
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              aria-label="Close modal"
+            >
+              <IconClose />
+            </button>
+          </div>
+
+          {/* Variants Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+            {TEEN_PATTI_VARIANTS.map((v) => {
+              const gameObj = games.find(
+                (g) =>
+                  g.gameId === v.gameId ||
+                  (v.gameId === 'TEENPATTI' && g.gameId === 'TEENPATTI_CLASSIC') ||
+                  String(g.title || g.name || '').toLowerCase().includes(v.id),
+              ) || { gameId: v.gameId, title: v.name, name: v.name }
+              const busy = launching === (gameObj.gameId || v.gameId)
+              const isSelected = selectedVariantDetail?.id === v.id
+
+              return (
+                <div
+                  key={v.id}
+                  className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+                    isSelected
+                      ? 'border-amber-400 bg-amber-400/[0.08] shadow-lg shadow-amber-400/10'
+                      : 'border-white/10 bg-white/[0.03] hover:border-amber-400/40'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span
+                        className="text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5"
+                        style={{ backgroundColor: v.badgeBg, color: v.badgeColor }}
+                      >
+                        <span>{v.icon}</span>
+                        <span>{v.name}</span>
+                      </span>
+                      <span className="text-[0.7rem] font-bold text-emerald-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {v.players} Live
+                      </span>
+                    </div>
+
+                    <h4 className="font-display text-base font-extrabold text-white mt-1">
+                      {v.badge}
+                    </h4>
+
+                    <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                      {v.rule}
+                    </p>
+
+                    <div className="mt-3 rounded-lg bg-black/40 border border-white/5 p-2.5 text-[0.72rem] text-slate-400">
+                      <strong className="text-amber-300 font-semibold block mb-0.5">Quick Rule Summary:</strong>
+                      {v.summary}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-3">
+                    <span className="text-[0.7rem] font-bold text-slate-400">
+                      {v.chips}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={Boolean(launching)}
+                      onClick={() => {
+                        setVariantModalOpen(false)
+                        onPlay(gameObj, { variant: v.id })
+                      }}
+                      className="px-4 py-2 text-xs font-black rounded-lg bg-amber-400 hover:bg-amber-300 text-black transition-all flex items-center gap-1.5 shadow-lg shadow-amber-400/20"
+                    >
+                      {busy ? (
+                        <>
+                          <IconRefresh spinning={true} />
+                          <span>Launching…</span>
+                        </>
+                      ) : (
+                        <span>Play {v.name} →</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -1070,6 +1237,9 @@ export default function Home() {
 
       {/* Quick Deposit Modal */}
       {renderDepositModal()}
+
+      {/* Teen Patti Variants Guide Modal */}
+      {renderVariantModal()}
 
       <button
         type="button"
@@ -1254,7 +1424,7 @@ export default function Home() {
         </header>
 
         {/* Dashboard Body */}
-        <div className={`dash-body ${showGamesOnly || showHistory || showWallet ? 'dash-body-single' : ''}`}>
+        <div className="dash-body dash-body-single">
           <section className="min-w-0 space-y-4">
             {error ? (
               <p className="rounded-xl border border-[var(--danger)]/35 bg-[var(--danger)]/10 px-4 py-3 text-sm font-semibold text-[#fecdd3]">
@@ -1266,7 +1436,12 @@ export default function Home() {
             {showLobby ? (
               <>
                 {/* 1. Dynamic Hero Banners */}
-                {renderHeroSection()}
+                <HeroSection
+                  teenPattiGame={teenPattiGame}
+                  onPlay={onPlay}
+                  selectTab={selectTab}
+                  setActiveCategory={setActiveCategory}
+                />
 
                 {/* 2. Live Winners Ticker */}
                 {renderWinnersMarquee()}
@@ -1667,185 +1842,6 @@ export default function Home() {
               </div>
             ) : null}
           </section>
-
-          {/* RIGHT SIDEBAR / QUICK HUB (LOBBY ONLY) */}
-          {showLobby ? (
-            <aside className="space-y-3.5">
-              {/* Quick Wallet & Cashier Card */}
-              <div className=" place-items-center ">
-                {/* <div className="flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
-                  <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="80" viewBox="0 0 142 125">
-                  <defs>
-                    <path id="a" d="M.22.35h21.59v24.544H.22z" />
-                    <path id="c" d="M.272.195h12.557v23.567H.272z" />
-                  </defs>
-                  <g fill="none" fill-rule="evenodd">
-                    <path fill="#E50539" d="M46.558 82l-4.136 16.799c-.345 1.343-1.12 2.499-2.332 3.462-1.212.963-2.494 1.448-3.835 1.448L41.609 82h-6.62l-.684 3.291L29 107h6.436c3.14 0 6.124-1.189 8.957-3.56 2.833-2.373 4.632-5.164 5.408-8.373l2.391-9.776L53 82h-6.442z" />
-                    <path fill="#E50539" d="M65.345 71.98c-.562-.652-1.31-.98-2.243-.98-.938 0-1.792.328-2.573.98-.775.651-1.241 1.434-1.393 2.343-.163.947.04 1.74.601 2.392.556.652 1.303.98 2.236.98.939 0 1.798-.334 2.58-1.001.775-.669 1.247-1.457 1.398-2.371.152-.909-.05-1.692-.606-2.343m-6.3 29.354c.012-.066.035-.148.068-.246.034-.1.057-.16.062-.198l4.804-18.706h-11.13L52 85.458h4.455l-4 15.432a2.949 2.949 0 0 0-.146.592c-.287 1.691.157 3.033 1.326 4.03 1.169.99 2.905 1.488 5.214 1.488h1l.854-3.274c-1.337-.191-1.893-.99-1.657-2.392M77.209 100.012c-.257 1.015-.824 1.887-1.701 2.61-.878.722-1.814 1.08-2.799 1.08-1.845 0-2.62-.916-2.332-2.758.006-.027.027-.11.064-.242.038-.132.06-.232.07-.298l3.065-12.646c.418-1.638 1.295-2.46 2.633-2.46h4.585l-3.585 14.714zm5.954 1.87a.937.937 0 0 1 .06-.198.85.85 0 0 0 .053-.193L88 82H76.974c-2.296 0-4.43.667-6.405 1.997-1.979 1.329-3.204 2.994-3.68 4.99l-2.665 11.025a3.357 3.357 0 0 0-.144.64c-.294 1.837.224 3.354 1.562 4.55 1.337 1.197 3.087 1.798 5.254 1.798h1c1.878 0 3.622-.672 5.238-2.019.808 1.347 2.322 2.019 4.548 2.019h2.247l.808-3.298c-1.23-.066-1.755-.673-1.574-1.82zM114.468 88.447l-.086.54-2.674 11.025c-.286 1.18-.754 2.09-1.4 2.73-.645.64-1.318.96-2.023.96-.64 0-1.13-.293-1.47-.888-.338-.59-.43-1.34-.285-2.261.01-.067.033-.155.07-.27a2.64 2.64 0 0 0 .065-.27l2.675-11.025c.269-1.081.715-1.958 1.334-2.631.62-.672 1.313-1.01 2.083-1.01.64 0 1.125.271 1.453.812.328.546.42 1.307.258 2.288m4.898-4.649c-1.33-1.197-3.078-1.798-5.258-1.798h-1.007c-2.373 0-4.536.673-6.495 2.019-1.96 1.346-3.176 3.005-3.65 4.969l-2.728 11.024a3.805 3.805 0 0 0-.145.64c-.302 1.87.22 3.392 1.571 4.578 1.346 1.18 3.127 1.77 5.334 1.77h.958c2.341 0 4.494-.684 6.474-2.04 1.98-1.363 3.202-3.012 3.676-4.948l2.723-11.024.102-.634c.291-1.842-.226-3.359-1.555-4.556" />
-                    <g transform="translate(120 81)">
-                      <mask id="b" fill="#fff">
-                        <use xlink:href="#a" />
-                      </mask>
-                      <path fill="#E50539" d="M19.587.35c-2.673 0-4.986.694-6.932 2.08l.499-2.08h-6.6L.221 24.895h6.633l3.444-13.428c.438-1.646 1.297-3.183 2.578-4.613 1.281-1.434 2.723-2.425 4.337-2.972l-.787 3.189h3.615l1.77-6.72h-2.224z" mask="url(#b)" />
-                    </g>
-                    <path fill="#E50539" d="M16.623 89.437l.011-.073 2.981-11.716c.22-.98.68-1.791 1.381-2.424.701-.631 1.496-.948 2.364-.948.817 0 1.413.274 1.81.833.388.547.523 1.253.388 2.097l-.074.442-2.981 11.716-.021.073h-5.859zm13.569-16.583C28.706 71.62 26.708 71 24.187 71c-2.751 0-5.168.695-7.27 2.076-2.103 1.38-3.432 3.213-3.997 5.499l-2.7 10.789c-2.28 0-4.393.01-6.036.01C1.862 89.374 0 91.28 0 93.62h9.154L5.817 107h6.444l3.348-13.38h5.869l-2.082 8.302a3.153 3.153 0 0 0-.147.632c-.23 1.402.042 2.497.827 3.277.774.78 1.956 1.169 3.535 1.169h2.574l.827-3.277c-.932-.063-1.319-.568-1.161-1.506l5.89-23.642c.01-.074.03-.2.083-.39.052-.2.073-.327.084-.4.334-2.044-.241-3.688-1.716-4.931zM100.228 81.65l1.45-5.65h-6.4l-1.402 5.65h-3.14l-.815 3.213h3.147l-3.82 15.19c-.011.065-.038.178-.081.34a3.332 3.332 0 0 0-.075.337c-.267 1.628.048 2.912.942 3.857.9.94 2.253 1.413 4.067 1.413h2.247l.819-3.26c-1.316-.124-1.862-.876-1.637-2.251.01-.065.031-.145.064-.242.027-.097.048-.156.053-.193l3.816-15.191h2.723L103 81.65h-2.772zM94.217 38L80 35.067 94.213 29 97 32.441zM28 63v.019l.028-.019z" />
-                    <path fill="#E50539" d="M87.73 39.881c-.51.752-1.7 2.15-3.449 1.865-.853-.144-35.6-7.164-35.686-7.17-.245-.066-.212-.587.231-.534L87.5 39.354c.244.04.377.316.231.527M86.426 27.28l-5.216 2.663s-1.212-.731.152-1.345c.351-.157 1.152-.612 1.8-.949a.471.471 0 0 0-.046-.856l-3.879-1.55c.656-.52 1.675-.83 2.648-.54.563.171 2.92 1.16 4.468 1.806.477.198.364.627.073.771m-12.294 3.56c-.556.396-4.22-.285-4.22-.285s4.054-3.587 7.91-4.046c1.147-.136 3.467.758 3.467.758s-5.171 2.15-7.157 3.573m39.56-.192c-1.714-3.736-2.972-6.927-3.422-7.691-1.31-2.208-3.263-2.09-4.938-1.8-4.468.765-6.21 1.55-14.087 3.632-1.158.317-3.343.956-4.547.54-3.191-1.087-4.157-1.957-5.686-1.786-2.37.27-7.243 2.551-12.531 6.4-1.656 1.186-1.464 2.602-1.755 3.538a.332.332 0 0 0 .285.428c.767.08 9.161.806 9.545.859a.347.347 0 0 1-.192-.31c0-.112.053-.224.172-.283 2.397-1.286 11.095-5.873 16.351-7.936 7.189-2.84 8.923-3.144 11.108-3.348.51-.046 1.225-.013 1.748.02.423.033.794.29.926.678.993 2.9 3.9 9.452 5.435 11.62 0 0-.271.514-.788.54-.404.008-1.224-.75-1.734-1.199a.349.349 0 0 0-.404-.026c-8.619 5.293-14.835 7.6-15.728 7.916a.296.296 0 0 1-.225-.007l-4.402-1.634s.165-.139.576-.956c.085-.191.132-.409.125-.547-.033-.699-.708-.857-1.013-.897-1.171-.145-32.635-4.765-40.525-5.536-3.35-.336-6.534 1.37-7.911 3.157l.007.046 4.468 4.636c.1.105.252.132.378.072l3.515-1.61s.482 1.483.033 1.733c-2.92 1.595-5.746 3.02-8.48 4.449-1.1.58-1.073 1.672-1.43 3.21-.15.644-.225 1.233-.225 1.233s6.13-3.059 9.883-4.845a.336.336 0 0 1 .384.073c.536.573.712.705 1.076 1.067a.33.33 0 0 1-.079.528c-.887.467-1.8.948-2.502 1.364-.556.33.009 1.43.009 1.43l10.2-4.81s.636.625-.49 1.317C55.083 47 38.997 55.165 37.613 55.2c-3.647.092-10.531-6.743-13.02-7.784-2.099-.877-4.356.553-7.421 2.346-.834.494-.325 1.687-.325 1.687l4.442-2.24s.55.632-.066 1.014c-2.151 1.358-5.262 2.716-5.74 3.059-.7.5-.431 2.847-.431 2.847l4.202-1.94c.126-.059.285-.039.344.02l9.006 8.537a10.145 10.145 0 0 0 1.668-.56l-7.513-7.955a.334.334 0 0 1 .093-.527c.767-.39 1.688-.673 2.985.316 1.092.824 4.912 3.902 8.606 3.572 1.231-.105 1.251.27 1.251.27s-1.569.752-3.43 1.767c-.92.507-.171 1.845-.171 1.845 9.519-3.888 21.242-8.726 22.884-9.431a.345.345 0 0 1 .338.046l2.753 2.175c.39.606 19.972-6.888 26.01-9.926.337-.165 3.408-.027 4.891-.04.682 0 .656.297.656.297s-49.006 19.45-61.028 19.001l-.02.013-2.561 1.095c1.503.988 1.145 2.695 3.7 1.377.152.35.331.719.517 1.114.496 1.075.496 1.081 3.746-.02 9.195-3.097 50.548-15.403 59.81-19.219 5.229-2.148 12.458-5.114 16.966-7.896 4.448-2.735 5.355-4.146 2.939-9.412M112.278 24.01c-.047.009-.102.018-.149.037a.385.385 0 0 0-.129.084l.5-.131c-.084 0-.148.01-.222.01M125.837 50.893l-.066.104-.073-.104c-.046-.066-4.593-6.67-6.237-9.227-.497-.771.086-1.157.086-1.157l.066-.04.047.06c.232.287 5.594 7.18 6.29 8.448.53.948-.086 1.876-.113 1.916m1.1-1.36c-.291-1.152-2.425-8.782-3.658-11.581L117.658 28c-.537.713-1.167 1.478-1.77 2.034-.113.091-.232.17-.37.235a1.473 1.473 0 0 1-.518.118l3.029 9.814c.45 1.577 1.505 2.917 2.413 4.277.457.673 3.678 5.414 4.918 7.232.258.38.835.392 1.087.006.45-.68.67-1.503.49-2.184" />
-                    <g transform="translate(103)">
-                      <mask id="d" fill="#fff">
-                        <use xlink:href="#c" />
-                      </mask>
-                      <path fill="#E50539" d="M7.823 12.13l-.068.04-.047-.06c-.23-.302-5.682-7.35-6.403-8.655-.527-.977.094-1.921.121-1.961l.067-.1.075.1c.047.073 4.682 6.84 6.35 9.45.505.79-.088 1.179-.095 1.185zm1.686.702c-.627-2.108-1.7-3.474-2.631-4.873A2595.75 2595.75 0 0 0 1.804.443.57.57 0 0 0 .859.45C.366 1.18.151 2.096.34 2.832c.304 1.172 2.403 8.943 3.658 11.807l5.222 9.123c.129-.14.29-.26.473-.341a1.2 1.2 0 0 1 .391-.094c.689-.047 1.768-.04 2.746-.02L9.51 12.832z" mask="url(#d)" />
-                    </g>
-                    <path fill="#E50539" d="M113.692 26.827l-.826-1.753s-.15-.262.19-.4c.027-.012.054-.025.088-.031 0 0 3.419-.112 4.489.081.568.106.589.293.589.293l-4.53 1.81zm4.692-2.558c-1.428-.294-4.13-.313-5.748-.219-.068 0-.115 0-.176.006-.034.007-.075.013-.115.025a.3.3 0 0 0-.102.063c-.183.125-.298.368-.217.555a56.269 56.269 0 0 0 2.472 5.08c.122.231.48.269.738.169a.788.788 0 0 0 .149-.087c1.38-1.186 2.68-2.865 3.5-4.531.25-.524.095-.937-.5-1.061zM101.038 24s-.612 2.533-1.575 5.458l-1.784-2.259-1.446.659 2.63 3.335c-.82 2.25-1.81 4.488-2.863 5.807l2.636-1.2c.6-.558 1.085-1.686 1.462-3.038l1.448 1.837 1.454-.663-2.455-3.109c.531-2.81.683-5.867.493-6.827M90.25 118h-38.5c-.962 0-1.75-.9-1.75-2s.788-2 1.75-2h38.5c.962 0 1.75.9 1.75 2s-.788 2-1.75 2M83.249 125H58.75c-.963 0-1.751-.9-1.751-2s.788-2 1.751-2H83.25c.963 0 1.751.9 1.751 2s-.788 2-1.751 2" />
-                  </g>
-                </svg>
-                <span className="font-display text-xs font-bold text-white tracking-wide uppercase">Aviator Game</span>
-                </div>
-                
-                <div className="flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="80" viewBox="0 0 100 100" className="mx-auto drop-shadow-lg">
-                  <rect x="0" y="0" width="100" height="100" rx="15" fill="#fff" />
-                  
-                  <rect x="8" y="8" width="35" height="35" rx="6" fill="#E50539" />
-                  <rect x="15" y="15" width="21" height="21" rx="4" fill="#fff" />
-                  <circle cx="20" cy="20" r="3" fill="#E50539" />
-                  <circle cx="31" cy="20" r="3" fill="#E50539" />
-                  <circle cx="20" cy="31" r="3" fill="#E50539" />
-                  <circle cx="31" cy="31" r="3" fill="#E50539" />
-
-                  <rect x="57" y="8" width="35" height="35" rx="6" fill="#00A859" />
-                  <rect x="64" y="15" width="21" height="21" rx="4" fill="#fff" />
-                  <circle cx="69" cy="20" r="3" fill="#00A859" />
-                  <circle cx="80" cy="20" r="3" fill="#00A859" />
-                  <circle cx="69" cy="31" r="3" fill="#00A859" />
-                  <circle cx="80" cy="31" r="3" fill="#00A859" />
-
-                  <rect x="8" y="57" width="35" height="35" rx="6" fill="#0072CE" />
-                  <rect x="15" y="64" width="21" height="21" rx="4" fill="#fff" />
-                  <circle cx="20" cy="69" r="3" fill="#0072CE" />
-                  <circle cx="31" cy="69" r="3" fill="#0072CE" />
-                  <circle cx="20" cy="80" r="3" fill="#0072CE" />
-                  <circle cx="31" cy="80" r="3" fill="#0072CE" />
-
-                  <rect x="57" y="57" width="35" height="35" rx="6" fill="#FFC90E" />
-                  <rect x="64" y="64" width="21" height="21" rx="4" fill="#fff" />
-                  <circle cx="69" cy="69" r="3" fill="#FFC90E" />
-                  <circle cx="80" cy="69" r="3" fill="#FFC90E" />
-                  <circle cx="69" cy="80" r="3" fill="#FFC90E" />
-                  <circle cx="80" cy="80" r="3" fill="#FFC90E" />
-
-                  <polygon points="50,50 43,43 57,43" fill="#00A859" />
-                  <polygon points="50,50 57,43 57,57" fill="#FFC90E" />
-                  <polygon points="50,50 57,57 43,57" fill="#0072CE" />
-                  <polygon points="50,50 43,57 43,43" fill="#E50539" />
-                  
-                  <rect x="43" y="8" width="14" height="35" fill="#f1f5f9" />
-                  <rect x="43" y="15" width="14" height="7" fill="#00A859" opacity="0.3" />
-                  <rect x="43" y="29" width="14" height="14" fill="#00A859" opacity="0.3" />
-                  
-                  <rect x="43" y="57" width="14" height="35" fill="#f1f5f9" />
-                  <rect x="43" y="57" width="14" height="14" fill="#0072CE" opacity="0.3" />
-                  <rect x="43" y="78" width="14" height="7" fill="#0072CE" opacity="0.3" />
-
-                  <rect x="8" y="43" width="35" height="14" fill="#f1f5f9" />
-                  <rect x="15" y="43" width="7" height="14" fill="#E50539" opacity="0.3" />
-                  <rect x="29" y="43" width="14" height="14" fill="#E50539" opacity="0.3" />
-
-                  <rect x="57" y="43" width="35" height="14" fill="#f1f5f9" />
-                  <rect x="57" y="43" width="14" height="14" fill="#FFC90E" opacity="0.3" />
-                  <rect x="78" y="43" width="7" height="14" fill="#FFC90E" opacity="0.3" />
-                  
-                </svg>
-                <span className="font-display text-xs font-bold text-white tracking-wide uppercase">Ludo Game</span>
-                </div> */}
-                <img src="https://official-aviator-game.com/wp-content/uploads/2024/07/1-how-to-start-play-aviator-1024x720.webp" alt="" className='border border-[var(--muted)]/20 bg-[var(--bg-body)]/80 backdrop-blur-sm rounded-lg shadow-sm p-2'/>
-              </div>
-
-              {/* Recent Activity Mini-Feed */}
-              <div className="side-card">
-                <div className="flex items-center justify-between">
-                  <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--muted)]">
-                    RECENT ACTIVITY
-                  </p>
-                  <button
-                    type="button"
-                    className="text-xs text-amber-400 hover:underline"
-                    onClick={() => selectTab('history')}
-                  >
-                    All →
-                  </button>
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  {recent.length ? (
-                    recent.map((row) => {
-                      const type = String(row.type || row.kind || '').toUpperCase()
-                      const label =
-                        type === 'DEBIT' || type === 'BET'
-                          ? 'DEBIT'
-                          : type === 'CREDIT' || type === 'WIN'
-                            ? 'CREDIT'
-                            : type
-                      const isCredit = label === 'CREDIT'
-                      return (
-                        <button
-                          key={`side-${row.kind}-${row.id}`}
-                          type="button"
-                          className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-[var(--panel-2)] px-2.5 py-2 text-left hover:border-amber-400/30 transition-colors"
-                          onClick={() => selectTab('history')}
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-bold text-white">
-                              {row.gameTitle || row.gameId || 'Wallet'}
-                            </p>
-                            <p className="text-[0.65rem] text-[var(--muted)]">
-                              {formatWhen(row.createdAt)}
-                            </p>
-                          </div>
-                          <span
-                            className={`shrink-0 font-display text-xs font-bold ${isCredit ? 'text-emerald-400' : 'text-red-400'
-                              }`}
-                          >
-                            {isCredit ? '+' : '−'}₹{Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
-                          </span>
-                        </button>
-                      )
-                    })
-                  ) : (
-                    <p className="text-xs font-semibold text-[var(--muted)] py-2 text-center">No transactions yet</p>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  className="btn-game btn-purple mt-3 w-full py-2.5 text-xs font-bold"
-                  onClick={() => selectTab('history')}
-                >
-                  Full Statement
-                </button>
-              </div>
-
-              {/* Trust Guarantees */}
-              <div className="side-card">
-                <p className="font-display text-[0.65rem] font-bold tracking-[0.16em] text-[var(--muted)] mb-2">
-                  PLATFORM INTEGRITY
-                </p>
-                <div className="space-y-2 text-xs text-[var(--muted)]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-400">🛡️</span>
-                    <span>256-Bit SSL Encrypted Gaming</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>Instant UPI & NetBanking Payouts</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-400">🎲</span>
-                    <span>Certified Provably Fair RNG</span>
-                  </div>
-                </div>
-              </div>
-            </aside>
-          ) : null}
         </div>
 
         {/* Mobile Bottom Floating Dock */}

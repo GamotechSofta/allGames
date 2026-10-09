@@ -305,7 +305,10 @@ export async function launchGame(req, res) {
 
     const wallet = await getWallet(playerIdOf(user))
     const catalogGameId = String(gameIdRaw).trim()
-    const game = await Game.findOne({ gameId: catalogGameId }).lean()
+    let game = await Game.findOne({ gameId: catalogGameId }).lean()
+    if (!game && catalogGameId === 'TEENPATTI_CLASSIC') {
+      game = await Game.findOne({ gameId: 'TEENPATTI' }).lean()
+    }
     if (!game) {
       auditLaunch(req, 'FAILED', { responseSummary: { message: 'Game not found' } })
       return res.status(404).json({ success: false, message: 'Game not found' })
@@ -364,6 +367,7 @@ export async function launchGame(req, res) {
       username: user.username || user.phone || playerId,
       operatorId,
       operator_id: operatorId,
+      ...(req.body?.variant ? { variant: String(req.body.variant).trim().toLowerCase() } : {}),
       // So games that honor a runtime operator URL can reach this backend
       ...(operatorBaseUrl
         ? {

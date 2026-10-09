@@ -479,10 +479,11 @@ body {
 
 .dash-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 17.5rem;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.1rem;
   padding: 1.1rem 1.25rem 1.5rem;
   flex: 1;
+  width: 100%;
 }
 
 .dash-body-single {
@@ -898,7 +899,7 @@ body {
 }
 
 .game-grid .game-card-art {
-  height: 9rem;
+  height: 10.5rem;
 }
 
 @media (min-width: 640px) {
@@ -1354,7 +1355,7 @@ body {
   justify-content: flex-end;
   padding: 2.25rem 2rem 2.25rem;
   background-size: cover;
-  background-position: center right;
+  background-position: center;
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
@@ -1362,6 +1363,16 @@ body {
   .hero-slide {
     min-height: 25rem;
     padding: 3rem 2.75rem 2.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-slide {
+    min-height: 20rem;
+    padding: 1.5rem 1.25rem 1.5rem;
+    background-image: var(--hero-bg-mobile, url('https://cdn.dmcrms.in/gamotechSolution/documents/1791529849716-Live-Dealer-Teen-Patti-Casino-1.png')) !important;
+    background-size: cover;
+    background-position: center top !important;
   }
 }
 
@@ -1382,9 +1393,9 @@ body {
   .hero-slide-overlay {
     background: linear-gradient(
       180deg,
-      rgba(11, 14, 21, 0.6) 0%,
-      rgba(11, 14, 21, 0.95) 50%,
-      rgba(11, 14, 21, 0.99) 100%
+      rgba(11, 14, 21, 0.35) 0%,
+      rgba(11, 14, 21, 0.85) 55%,
+      rgba(11, 14, 21, 0.98) 100%
     );
   }
 }
@@ -2155,9 +2166,13 @@ body {
     height: 1.35rem;
   }
 
+  .dock-item:hover {
+    color: #ef4444;
+  }
+
   .dock-item.is-active {
-    color: #fbbf24;
-    background: rgba(251, 191, 36, 0.15);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
     flex-direction: row;
     padding: 0.5rem 1rem;
   }
@@ -2170,4 +2185,387 @@ body {
     padding-bottom: 5.5rem;
   }
 }
+
+/* ==========================================================================
+   Teen Patti Variants Styling
+   ========================================================================== */
+
+.tag-gold {
+  color: #111827;
+  background: #fbbf24;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.35);
+  font-weight: 700;
+}
+
+.tag-purple {
+  color: #fff;
+  background: #9333ea;
+  box-shadow: 0 2px 8px rgba(147, 51, 234, 0.35);
+  font-weight: 700;
+}
+
+.tag-cyan {
+  color: #042f2e;
+  background: #06b6d4;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
+  font-weight: 700;
+}
+
+.tag-orange {
+  color: #fff;
+  background: #ea580c;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+  font-weight: 700;
+}
+
+.tag-blue {
+  color: #fff;
+  background: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  font-weight: 700;
+}
+
+.tp-variant-strip {
+  background: linear-gradient(135deg, rgba(22, 27, 34, 0.85) 0%, rgba(13, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 1.15rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.6);
+}
+
+.tp-variant-strip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #ef4444, #a855f7, #06b6d4, #3b82f6);
+}
+
+.tp-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .tp-variant-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .tp-variant-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.tp-variant-card {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+}
+
+.tp-variant-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+.tp-variant-card.is-active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.09);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+.tp-variant-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.tp-pill-rule {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  display: inline-block;
+  margin-top: 0.35rem;
+}
+
+/* Modal for Variant Details */
+.variant-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.variant-modal-content {
+  background: #11151c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  position: relative;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ==========================================================================
+   LUXURY TEEN PATTI CARD STYLES (MOBILE REFERENCE DESIGN)
+   ========================================================================== */
+
+.tp-luxury-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 5.75rem;
+  padding: 0.6rem 0.85rem;
+  background: linear-gradient(135deg, #440409 0%, #2b0206 50%, #150003 100%);
+  border: 1.5px solid rgba(220, 38, 38, 0.45);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 140, 140, 0.28);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.tp-luxury-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(239, 68, 68, 0.85);
+  box-shadow: 0 8px 26px rgba(220, 38, 38, 0.35),
+              0 4px 12px rgba(0, 0, 0, 0.85),
+              inset 0 1px 1px rgba(255, 160, 160, 0.4);
+}
+
+.tp-luxury-card:active {
+  transform: translateY(0);
+}
+
+/* Faint casino club watermark in background */
+.tp-card-watermark {
+  position: absolute;
+  right: 4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7.5rem;
+  height: 7.5rem;
+  color: rgba(185, 28, 28, 0.15);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tp-card-watermark svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Left 3D artwork container */
+.tp-card-visual {
+  position: relative;
+  z-index: 2;
+  width: 5.5rem;
+  height: 5.25rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .tp-card-visual {
+    width: 6.25rem;
+    height: 5.75rem;
+  }
+}
+
+.tp-card-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 14px rgba(220, 38, 38, 0.35));
+}
+
+/* Center title & subtitle */
+.tp-card-body {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-width: 0;
+  padding: 0 0.75rem 0 0.5rem;
+}
+
+.tp-card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff4d1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) {
+  .tp-card-title {
+    font-size: 1.55rem;
+  }
+}
+
+.tp-card-subtitle {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: rgba(229, 231, 235, 0.9);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .tp-card-subtitle {
+    font-size: 0.84rem;
+  }
+}
+
+/* Right side actions */
+.tp-card-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+  padding: 0.1rem 0;
+  gap: 0.75rem;
+}
+
+.tp-chevron-circle {
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  background: rgba(45, 3, 7, 0.95);
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  color: #fca5a5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tp-chevron-circle:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #ef4444;
+  transform: scale(1.08);
+}
+
+.tp-chevron-circle svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  stroke-width: 2.5;
+}
+
+.tp-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  border: 1px solid rgba(254, 202, 202, 0.35);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tp-play-btn:hover {
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px) scale(1.03);
+}
+
+.tp-play-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.tp-play-icon-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #b91c1c;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.tp-play-icon-circle svg {
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-left: 1px;
+}
+
+.tp-play-chevron {
+  font-size: 0.95rem;
+  line-height: 1;
+  margin-left: -0.1rem;
+}
+
 

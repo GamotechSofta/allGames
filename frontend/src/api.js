@@ -76,7 +76,7 @@ export function extractLaunchUrl(res) {
   )
 }
 
-export async function launchGame(gameId) {
+export async function launchGame(gameId, extras = {}) {
   const user = getStoredUser()
   if (!user?.id && !user?.playerId) throw new Error('Not logged in')
 
@@ -102,6 +102,7 @@ export async function launchGame(gameId) {
       userId: user.id || user.playerId,
       gameId,
       ...(returnUrl ? { returnUrl } : {}),
+      ...(extras && typeof extras === 'object' ? extras : {}),
     },
   })
   const launchUrl = extractLaunchUrl(res)
