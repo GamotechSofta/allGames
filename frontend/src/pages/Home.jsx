@@ -790,25 +790,25 @@ export default function Home() {
 
 
 
-  function renderWinnersMarquee() {
-    return (
-      <div className="marquee-container" aria-label="Recent Live Winners">
+  // function renderWinnersMarquee() {
+  //   return (
+  //     <div className="marquee-container" aria-label="Recent Live Winners">
 
-        <div className="marquee-track">
-          {[...LIVE_WINNERS, ...LIVE_WINNERS].map((win, i) => (
-            <div key={i} className="marquee-item">
-              <span>👤</span>
-              <strong>{win.name}</strong>
-              <span>won</span>
-              <span className="marquee-amount">₹{win.amount.toLocaleString('en-IN')}</span>
-              <span>in {win.game}</span>
-              <span className="text-[var(--muted)] text-xs">({win.time})</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  //       <div className="marquee-track">
+  //         {[...LIVE_WINNERS, ...LIVE_WINNERS].map((win, i) => (
+  //           <div key={i} className="marquee-item">
+  //             <span>👤</span>
+  //             <strong>{win.name}</strong>
+  //             <span>won</span>
+  //             <span className="marquee-amount">₹{win.amount.toLocaleString('en-IN')}</span>
+  //             <span>in {win.game}</span>
+  //             <span className="text-[var(--muted)] text-xs">({win.time})</span>
+  //           </div>
+  //         ))}
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   function renderLobbyControls({ showSearch = true } = {}) {
     return (
@@ -1443,10 +1443,10 @@ export default function Home() {
                 />
 
                 {/* 2. Live Winners Ticker */}
-                {renderWinnersMarquee()}
+                {/* {renderWinnersMarquee()} */}
 
                 {/* 3. Category Bar (search hidden on Home) */}
-                {renderLobbyControls({ showSearch: false })}
+                {/* {renderLobbyControls({ showSearch: false })} */}
 
                 {/* 4. Supercharged Game Grid */}
                 {renderGameCards()}
