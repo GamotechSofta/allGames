@@ -2440,7 +2440,7 @@ body {
 .tp-card-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: #fff4d1;
@@ -2450,7 +2450,19 @@ body {
   text-overflow: ellipsis;
 }
 
+@media (max-width: 420px) {
+  .tp-card-title {
+    font-size: 0.95rem;
+  }
+}
+
 @media (min-width: 640px) {
+  .tp-card-title {
+    font-size: 1.45rem;
+  }
+}
+
+@media (min-width: 1024px) {
   .tp-card-title {
     font-size: 1.55rem;
   }
@@ -2458,8 +2470,8 @@ body {
 
 .tp-card-subtitle {
   margin: 0.2rem 0 0 0;
-  font-size: 0.76rem;
-  line-height: 1.35;
+  font-size: 0.72rem;
+  line-height: 1.32;
   color: rgba(229, 231, 235, 0.9);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2470,6 +2482,7 @@ body {
 @media (min-width: 640px) {
   .tp-card-subtitle {
     font-size: 0.84rem;
+    line-height: 1.35;
   }
 }
 

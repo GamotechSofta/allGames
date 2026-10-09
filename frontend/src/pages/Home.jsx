@@ -1092,19 +1092,19 @@ export default function Home() {
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <span
-                        className="text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5"
+                        className="text-[0.7rem] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md flex items-center gap-1.5"
                         style={{ backgroundColor: v.badgeBg, color: v.badgeColor }}
                       >
                         <span>{v.icon}</span>
                         <span>{v.name}</span>
                       </span>
-                      <span className="text-[0.7rem] font-bold text-emerald-400 flex items-center gap-1">
+                      <span className="text-[0.68rem] sm:text-[0.7rem] font-bold text-emerald-400 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         {v.players} Live
                       </span>
                     </div>
 
-                    <h4 className="font-display text-base font-extrabold text-white mt-1">
+                    <h4 className="font-display text-sm sm:text-base font-extrabold text-white mt-1">
                       {v.badge}
                     </h4>
 
