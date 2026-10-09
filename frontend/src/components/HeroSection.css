@@ -1,22 +1,57 @@
 
 /* Hero banner container */
 .hero-carousel-container {
+  --hero-radius: 14px;
   width: 100%;
   position: relative;
   overflow: hidden;
+  border-radius: var(--hero-radius);
 }
 
 /* Desktop banner */
 .hero-slide {
   width: 100%;
-  min-height: 420px;
-  aspect-ratio: 16 / 6;
+  aspect-ratio: 16 / 9;
   position: relative;
   overflow: hidden;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  border-radius: 14px;
+  border-radius: var(--hero-radius);
+}
+
+/* Banner image */
+.hero-slide-media,
+.hero-slide-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--hero-radius);
+}
+
+.hero-slide-img {
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Whole banner is the click target */
+.hero-slide-link {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-slide-link:focus-visible {
+  outline: 2px solid #ffcf63;
+  outline-offset: -2px;
 }
 
 /* Overlay */
@@ -178,8 +213,7 @@
 /* Tablet */
 @media (max-width: 1024px) {
   .hero-slide {
-    min-height: 0;
-    aspect-ratio: 16 / 7;
+    aspect-ratio: 16 / 9;
   }
 
   .hero-slide-content {
@@ -200,9 +234,9 @@
 /* Mobile: landscape banner */
 @media (max-width: 768px) {
   .hero-carousel-container {
+    --hero-radius: 10px;
     width: 100%;
     margin: 0;
-    border-radius: 0;
   }
 
   .hero-slide {
@@ -210,11 +244,6 @@
     height: auto;
     min-height: 0;
     aspect-ratio: 16 / 9;
-    border-radius: 0;
-    background-image: var(--hero-bg-mobile);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
   }
 
   .hero-slide-overlay {

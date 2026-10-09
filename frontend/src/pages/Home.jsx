@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import { fetchGames, fetchGameHistory, launchGame, creditWallet } from '../api'
-import siteLogo from '../assets/image.png'
+import siteLogo from '../assets/logo-123games.png'
 import HeroSection from '../components/HeroSection'
 import tpClassic from '../assets/tp_classic-Photoroom.png'
 import tpAk47 from '../assets/tp_ak47-Photoroom.png'
@@ -438,6 +438,8 @@ export default function Home() {
 
   useEffect(() => {
     sessionStorage.setItem('allgames_tab', tab)
+    // Search is not shown on the Home lobby, so don't let a stale query filter it
+    if (tab === 'lobby') setSearchQuery('')
   }, [tab])
 
   // Restore Games tab when returning from play
@@ -808,7 +810,7 @@ export default function Home() {
     )
   }
 
-  function renderLobbyControls() {
+  function renderLobbyControls({ showSearch = true } = {}) {
     return (
       <div className="lobby-controls-bar">
         <div className="category-pills-list" role="tablist" aria-label="Game Categories">
@@ -870,6 +872,7 @@ export default function Home() {
           </button>
         </div>
 
+        {showSearch ? (
         <div className="search-input-wrap">
           <span className="search-icon-left">
             <IconSearch />
@@ -893,6 +896,7 @@ export default function Home() {
             </button>
           ) : null}
         </div>
+        ) : null}
       </div>
     )
   }
@@ -1260,11 +1264,7 @@ export default function Home() {
         </button>
 
         <div className="dash-brand">
-          <img src={siteLogo} alt="AllGames" className="site-logo" />
-          <div className="hidden sm:block">
-            <p className="dash-brand-title">ALLGAMES</p>
-            <span className="text-[0.62rem] font-bold uppercase tracking-wider text-amber-400">VIP Casino</span>
-          </div>
+          <img src={siteLogo} alt="123Games" className="site-logo" />
         </div>
 
         <nav className="nav-list" aria-label="Main">
@@ -1330,8 +1330,7 @@ export default function Home() {
         {/* Mobile Topbar */}
         <div className="mobile-topbar">
           <div className="flex items-center gap-2 min-w-0">
-            <img src={siteLogo} alt="AllGames" className="site-logo site-logo-sm" />
-
+            <img src={siteLogo} alt="123Games" className="site-logo site-logo-sm" />
           </div>
           <div className="mobile-topbar-right">
             <button
@@ -1446,8 +1445,8 @@ export default function Home() {
                 {/* 2. Live Winners Ticker */}
                 {renderWinnersMarquee()}
 
-                {/* 3. Category & Search Bar */}
-                {renderLobbyControls()}
+                {/* 3. Category Bar (search hidden on Home) */}
+                {renderLobbyControls({ showSearch: false })}
 
                 {/* 4. Supercharged Game Grid */}
                 {renderGameCards()}

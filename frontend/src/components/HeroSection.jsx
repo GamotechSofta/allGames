@@ -126,73 +126,54 @@ export default function HeroSection({
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setIsPaused(false)}
     >
-      <div
-        className="hero-slide"
-        style={{
-          backgroundImage: `url("${activeBanner.image}")`,
-          '--hero-bg-mobile': `url("${activeBanner.mobileImage || activeBanner.image}")`,
-        }}
-      >
-        <div className="hero-slide-overlay" />
+      {(() => {
+        const media = (
+          <picture className="hero-slide-media">
+            {activeBanner.mobileImage && (
+              <source
+                media="(max-width: 768px)"
+                srcSet={activeBanner.mobileImage}
+              />
+            )}
+            <img
+              key={activeBanner.image}
+              className="hero-slide-img"
+              src={activeBanner.image}
+              alt={activeBanner.title || 'Featured banner'}
+              loading={safeIndex === 0 ? 'eager' : 'lazy'}
+              fetchPriority={safeIndex === 0 ? 'high' : 'auto'}
+              decoding="async"
+            />
+          </picture>
+        )
 
-        <div className="hero-slide-content">
-          {activeBanner.pill && (
-            <span
-              className={`hero-pill ${
-                activeBanner.pillClass || 'hero-pill-fire'
-              }`}
+        const label = activeBanner.title || 'Open banner'
+
+        if (activeBanner.link) {
+          return (
+            <a
+              className="hero-slide hero-slide-link"
+              href={activeBanner.link}
+              target={activeBanner.newTab ? '_blank' : undefined}
+              rel={activeBanner.newTab ? 'noopener noreferrer' : undefined}
+              aria-label={label}
             >
-              {activeBanner.pill}
-            </span>
-          )}
+              {media}
+            </a>
+          )
+        }
 
-          {activeBanner.title && (
-            <h2 className="hero-title">{activeBanner.title}</h2>
-          )}
-
-          {activeBanner.desc && (
-            <p className="hero-desc">{activeBanner.desc}</p>
-          )}
-
-          {activeBanner.stats?.length > 0 && (
-            <div className="hero-stats-row">
-              {activeBanner.stats.map((st, i) => (
-                <div key={i} className="hero-stat-item">
-                  <span
-                    className="hero-stat-dot"
-                    style={{ backgroundColor: st.color }}
-                  />
-                  <span style={{ color: st.color }}>
-                    {st.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="hero-actions-row">
-            {activeBanner.primaryLabel && (
-              <button
-                type="button"
-                className="btn-hero-play"
-                onClick={activeBanner.primaryAction}
-              >
-                {activeBanner.primaryLabel}
-              </button>
-            )}
-
-            {activeBanner.secondaryLabel && (
-              <button
-                type="button"
-                className="btn-hero-alt"
-                onClick={activeBanner.secondaryAction}
-              >
-                {activeBanner.secondaryLabel}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+        return (
+          <button
+            type="button"
+            className="hero-slide hero-slide-link"
+            onClick={activeBanner.primaryAction}
+            aria-label={label}
+          >
+            {media}
+          </button>
+        )
+      })()}
 
       {bannerList.length > 1 && (
         <>

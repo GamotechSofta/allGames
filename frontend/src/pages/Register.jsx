@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import siteLogo from '../assets/image.png'
+import siteLogo from '../assets/logo-123games.png'
 
 export default function Register() {
   const { user, register } = useAuth()
@@ -32,10 +32,10 @@ export default function Register() {
     <div className="auth-shell">
       <form onSubmit={onSubmit} className="auth-panel space-y-5">
         <div className="flex items-center gap-3">
-          <img src={siteLogo} alt="AllGames" className="site-logo" />
+          <img src={siteLogo} alt="123Games" className="site-logo" />
           <div>
             <p className="font-display text-[0.7rem] font-bold tracking-[0.35em] text-[var(--muted)]">
-              ALLGAMES
+              123GAMES
             </p>
             <h1 className="font-display mt-1 text-2xl font-bold tracking-wide">Create Account</h1>
           </div>
