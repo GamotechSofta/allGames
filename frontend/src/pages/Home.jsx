@@ -907,7 +907,7 @@ export default function Home() {
         {/* Subtle glowing red bar matching reference design header */}
         <div className="w-14 h-1 rounded-full bg-red-600/80 mx-auto mb-3.5 shadow-[0_0_12px_rgba(239,68,68,0.75)]" />
 
-        <div className="game-grid grid grid-cols-1 gap-3 sm:gap-3.5">
+        <div className="game-grid grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
           {filteredGames.map((game, index) => {
             const id = game.gameId || game.gameCode
             const busy = launching === id
@@ -963,24 +963,6 @@ export default function Home() {
                 <div className="tp-card-actions">
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (variantMeta) {
-                        setSelectedVariantDetail(variantMeta)
-                        setVariantModalOpen(true)
-                      } else {
-                        toggleFavorite(id)
-                      }
-                    }}
-                    className="tp-chevron-circle"
-                    aria-label={variantMeta ? `${variantMeta.name} Rules` : 'More details'}
-                    title={variantMeta ? `${variantMeta.name} Rules` : 'More details'}
-                  >
-                    <IconChevronRight />
-                  </button>
-
-                  <button
-                    type="button"
                     disabled={Boolean(launching)}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -994,7 +976,6 @@ export default function Home() {
                       </svg>
                     </span>
                     <span>{busy ? 'Launching…' : 'Play Now'}</span>
-                    <span className="tp-play-chevron">›</span>
                   </button>
                 </div>
               </article>
@@ -1336,15 +1317,12 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setDepositOpen(true)}
-              className="btn-game btn-play px-2.5 py-1 text-[0.8rem] font-bold"
+              className="btn-gold-action px-2.5 py-1 text-[0.8rem]"
             >
               + Add
             </button>
-            <div className="chip chip-compact">
-              <span className="chip-icon gold">
-                <IconCoin />
-              </span>
-              <p className="font-display text-[0.7rem] font-bold tracking-wide text-[var(--gold)]">
+            <div className="chip chip-compact px-2.5 py-1">
+              <p className="font-display text-[0.75rem] font-bold tracking-wide text-white">
                 ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
               </p>
             </div>
@@ -1377,21 +1355,17 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setDepositOpen(true)}
-              className="btn-hero-play px-2 py-2 text-sm"
+              className="btn-gold-action px-3.5 py-1.5 text-xs sm:text-sm"
             >
-
-              <span className='text-sm'>Add Cash </span>
+              + Add Cash
             </button>
 
-            <div className="chip header-wallet-chip">
-              <span className="chip-icon gold">
-                <IconCoin />
-              </span>
+            <div className="chip header-wallet-chip px-3 py-1">
               <div className="leading-tight">
-                <p className="text-[0.55rem] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
+                <p className="text-[0.55rem] font-bold uppercase tracking-[0.14em] text-white/70">
                   Wallet
                 </p>
-                <p className="font-display text-xs font-bold tracking-wide text-[var(--gold)]">
+                <p className="font-display text-xs font-bold tracking-wide text-white">
                   ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
                 </p>
               </div>

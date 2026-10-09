@@ -128,23 +128,32 @@ export default function HeroSection({
     >
       {(() => {
         const media = (
-          <picture className="hero-slide-media">
-            {activeBanner.mobileImage && (
-              <source
-                media="(max-width: 768px)"
-                srcSet={activeBanner.mobileImage}
+          <>
+            <div className="hero-slide-backdrop" aria-hidden="true">
+              <img
+                src={activeBanner.image}
+                alt=""
+                className="hero-slide-backdrop-img"
               />
-            )}
-            <img
-              key={activeBanner.image}
-              className="hero-slide-img"
-              src={activeBanner.image}
-              alt={activeBanner.title || 'Featured banner'}
-              loading={safeIndex === 0 ? 'eager' : 'lazy'}
-              fetchPriority={safeIndex === 0 ? 'high' : 'auto'}
-              decoding="async"
-            />
-          </picture>
+            </div>
+            <picture className="hero-slide-media">
+              {activeBanner.mobileImage && (
+                <source
+                  media="(max-width: 768px)"
+                  srcSet={activeBanner.mobileImage}
+                />
+              )}
+              <img
+                key={activeBanner.image}
+                className="hero-slide-img"
+                src={activeBanner.image}
+                alt={activeBanner.title || 'Featured banner'}
+                loading={safeIndex === 0 ? 'eager' : 'lazy'}
+                fetchPriority={safeIndex === 0 ? 'high' : 'auto'}
+                decoding="async"
+              />
+            </picture>
+          </>
         )
 
         const label = activeBanner.title || 'Open banner'

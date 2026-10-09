@@ -12,9 +12,31 @@
 .hero-slide {
   width: 100%;
   aspect-ratio: 16 / 9;
+  max-height: 270px;
   position: relative;
   overflow: hidden;
   border-radius: var(--hero-radius);
+  background: radial-gradient(ellipse at center, #2e0307 0%, #0e0002 70%, #050001 100%);
+}
+
+/* Ambient blurred backdrop for desktop widescreen */
+.hero-slide-backdrop {
+  position: absolute;
+  inset: -15%;
+  width: 130%;
+  height: 130%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-slide-backdrop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: blur(24px) brightness(0.4) saturate(1.15);
+  transform: scale(1.1);
 }
 
 /* Banner image */
@@ -25,6 +47,7 @@
   width: 100%;
   height: 100%;
   border-radius: var(--hero-radius);
+  z-index: 1;
 }
 
 .hero-slide-img {
@@ -33,6 +56,7 @@
   object-position: center;
   user-select: none;
   pointer-events: none;
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.65));
 }
 
 /* Whole banner is the click target */
@@ -213,26 +237,16 @@
 /* Tablet */
 @media (max-width: 1024px) {
   .hero-slide {
-    aspect-ratio: 16 / 9;
-  }
-
-  .hero-slide-content {
-    width: 65%;
-    padding: 22px;
-    gap: 10px;
-  }
-
-  .hero-title {
-    font-size: clamp(24px, 3.5vw, 36px);
-  }
-
-  .hero-desc {
-    font-size: 13px;
+    max-height: 250px;
   }
 }
 
 /* Mobile: landscape banner */
 @media (max-width: 768px) {
+  .hero-slide-backdrop {
+    display: none;
+  }
+
   .hero-carousel-container {
     --hero-radius: 10px;
     width: 100%;
@@ -243,6 +257,7 @@
     width: 100%;
     height: auto;
     min-height: 0;
+    max-height: none;
     aspect-ratio: 16 / 9;
   }
 
