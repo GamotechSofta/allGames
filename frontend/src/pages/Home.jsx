@@ -4,11 +4,11 @@ import { useAuth } from '../AuthContext'
 import { fetchGames, fetchGameHistory, launchGame, creditWallet } from '../api'
 import siteLogo from '../assets/image.png'
 import HeroSection from '../components/HeroSection'
-import tpClassic from '../assets/tp_classic.jpg'
-import tpAk47 from '../assets/tp_ak47.jpg'
-import tpMuflis from '../assets/tp_muflis.jpg'
-import tpFlipper from '../assets/tp_flipper.jpg'
-import tpJhandu from '../assets/tp_jhandu.jpg'
+import tpClassic from '../assets/tp_classic-Photoroom.png'
+import tpAk47 from '../assets/tp_ak47-Photoroom.png'
+import tpMuflis from '../assets/tp_muflis-Photoroom.png'
+import tpFlipper from '../assets/tp_flipper-Photoroom.png'
+import tpJhandu from '../assets/tp_jhandu-Photoroom.png'
 
 /** Public CDN images (Unsplash / Microsoft CDN) for lobby art */
 const IMAGES = {
