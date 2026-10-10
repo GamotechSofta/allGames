@@ -2158,8 +2158,10 @@ body {
   .mobile-bottom-dock {
     position: fixed;
     bottom: 1.25rem;
-    left: 1rem;
-    right: 1rem;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(88%, 22rem);
     z-index: 45;
     display: flex;
     align-items: center;
