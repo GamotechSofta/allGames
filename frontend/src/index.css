@@ -2202,7 +2202,7 @@ body {
   }
 
   .dock-item.is-active {
-    color: #ef4444;
+    color: #f5f0e8;
     background: rgba(239, 68, 68, 0.15);
     flex-direction: row;
     padding: 0.5rem 1rem;

@@ -1822,7 +1822,7 @@ export default function Home() {
 
         {/* Mobile Bottom Floating Dock */}
         <nav className="mobile-bottom-dock" aria-label="Mobile Navigation">
-          {NAV.map(({ id, label, Icon }) => (
+          {NAV.filter((item) => item.id !== 'games').map(({ id, label, Icon }) => (
             <button
               key={id}
               type="button"
