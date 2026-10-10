@@ -3,6 +3,9 @@ import { useEffect, useState, useMemo } from 'react'
 import './HeroSection.css'
 
 export const TEEN_PATTI_BANNER_IMG =
+  'https://cdn.dmcrms.in/gamotechSolution/documents/1791620544846-Live-Teen-Patti-Casino-Banner.png'
+
+export const TEEN_PATTI_BANNER_MOBILE_IMG =
   'https://cdn.dmcrms.in/gamotechSolution/documents/1791529849716-Live-Dealer-Teen-Patti-Casino-1.png'
 
 export default function HeroSection({
@@ -43,7 +46,7 @@ export default function HeroSection({
         desc:
           'Experience India’s premier multiplayer card arena. Play Classic, AK47 Wild Jokers, Muflis Lowball, Flipper & Jhandu Cycle Jokers.',
         image: TEEN_PATTI_BANNER_IMG,
-        mobileImage: TEEN_PATTI_BANNER_IMG,
+        mobileImage: TEEN_PATTI_BANNER_MOBILE_IMG,
         stats: [
           { label: '8,240 Total Active Players', color: '#86efac' },
           { label: '5 Unique Rule Sets', color: '#fbbf24' },

@@ -2388,25 +2388,133 @@ body {
   justify-content: space-between;
   width: 100%;
   min-height: 5.25rem;
-  padding: 0.5rem 0.55rem;
-  background: linear-gradient(135deg, #440409 0%, #2b0206 50%, #150003 100%);
-  border: 1.5px solid rgba(220, 38, 38, 0.45);
+  padding: 0.25rem 0.3rem;
+  background:
+    linear-gradient(135deg, #440409 0%, #2b0206 50%, #150003 100%) padding-box,
+    linear-gradient(135deg, #ffe0e0 0%, #ef4444 18%, #7f1d1d 40%, #dc2626 62%, #ff9b9b 82%, #ffeaea 100%) border-box;
+  border: 2px solid transparent;
   border-radius: 1.25rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 140, 140, 0.28);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.65),
+              0 0 10px rgba(220, 38, 38, 0.3),
+              inset 0 1px 1px rgba(255, 190, 190, 0.5);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.2s ease,
               box-shadow 0.2s ease;
   user-select: none;
 }
 
+/* Glossy highlight across the top half */
+.tp-luxury-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 1.25rem 1.25rem 0 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Moving shine sweep on hover */
+.tp-luxury-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  z-index: 3;
+  transition: left 0.7s ease;
+}
+
+.tp-luxury-card:hover::after {
+  left: 130%;
+}
+
 .tp-luxury-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(239, 68, 68, 0.85);
-  box-shadow: 0 8px 26px rgba(220, 38, 38, 0.35),
+  box-shadow: 0 8px 26px rgba(220, 38, 38, 0.45),
+              0 0 14px rgba(255, 120, 120, 0.4),
               0 4px 12px rgba(0, 0, 0, 0.85),
-              inset 0 1px 1px rgba(255, 160, 160, 0.4);
+              inset 0 1px 1px rgba(255, 210, 210, 0.7);
+}
+
+/* Glossy section heading with side bars */
+.tp-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.tp-glossy-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #ffffff 0%, #ffe3e3 40%, #f87171 55%, #ffd0d0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.55));
+}
+
+@media (min-width: 640px) {
+  .tp-glossy-title {
+    font-size: 1.5rem;
+  }
+}
+
+.tp-glossy-bar {
+  position: relative;
+  flex: 1;
+  max-width: 22rem;
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.tp-glossy-bar-left {
+  background: linear-gradient(90deg, transparent 0%, #7f1d1d 25%, #ef4444 65%, #ffe0e0 100%);
+}
+
+.tp-glossy-bar-right {
+  background: linear-gradient(270deg, transparent 0%, #7f1d1d 25%, #ef4444 65%, #ffe0e0 100%);
+}
+
+/* Top gloss streak + moving shine */
+.tp-glossy-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.tp-glossy-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  animation: tp-bar-shine 3.2s ease-in-out infinite;
+}
+
+@keyframes tp-bar-shine {
+  0% { left: -40%; }
+  60%, 100% { left: 130%; }
 }
 
 .tp-luxury-card:active {
@@ -2463,7 +2571,7 @@ body {
   z-index: 2;
   flex: 1;
   min-width: 0;
-  padding: 0 0.45rem 0 0.35rem;
+  padding: 0 0.3rem 0 0.2rem;
 }
 
 .tp-card-title {
@@ -2578,6 +2686,24 @@ body {
 @media (min-width: 768px) {
   .game-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Tighter horizontal page padding on mobile */
+@media (max-width: 640px) {
+  .dash-header {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .dash-body {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .auth-shell {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
   }
 }
 

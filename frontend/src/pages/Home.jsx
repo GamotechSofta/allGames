@@ -904,9 +904,12 @@ export default function Home() {
   function renderGameCards() {
     return (
       <>
-        {/* Subtle glowing red bar matching reference design header */}
-        <div className="w-14 h-1 rounded-full bg-red-600/80 mx-auto mb-3.5 shadow-[0_0_12px_rgba(239,68,68,0.75)]" />
-
+      <div className="tp-section-heading">
+        <span className="tp-glossy-bar tp-glossy-bar-left" aria-hidden="true" />
+        <h2 className="tp-glossy-title">Teen Patti Games</h2>
+        <span className="tp-glossy-bar tp-glossy-bar-right" aria-hidden="true" />
+      </div>
+       
         <div className="game-grid grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
           {filteredGames.map((game, index) => {
             const id = game.gameId || game.gameCode
