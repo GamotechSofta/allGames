@@ -125,6 +125,13 @@ app.post('/api/v1/auth/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' })
     }
 
+    if (player.isSuspended) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been suspended by administrator. Login is disabled.',
+      })
+    }
+
     const ok = await bcrypt.compare(password, player.passwordHash)
     if (!ok) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' })
@@ -147,6 +154,9 @@ app.get('/api/v1/auth/me', authRequired, async (req, res) => {
     const player = await findPlayerById(req.playerId)
     if (!player) {
       return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+    if (player.isSuspended) {
+      return res.status(403).json({ success: false, message: 'Account is suspended' })
     }
     return res.json({
       success: true,

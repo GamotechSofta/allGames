@@ -302,6 +302,13 @@ export async function launchGame(req, res) {
       auditLaunch(req, 'FAILED', { responseSummary: { message: 'User not found' } })
       return res.status(404).json({ success: false, message: 'User not found' })
     }
+    if (user.isSuspended) {
+      auditLaunch(req, 'FAILED', { responseSummary: { message: 'Account is suspended' } })
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been suspended by administrator.',
+      })
+    }
 
     const wallet = await getWallet(playerIdOf(user))
     const catalogGameId = String(gameIdRaw).trim()

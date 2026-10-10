@@ -6,6 +6,7 @@ const playerSchema = new mongoose.Schema(
     username: { type: String, required: true },
     passwordHash: { type: String, required: true },
     currency: { type: String, default: 'INR', trim: true },
+    isSuspended: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

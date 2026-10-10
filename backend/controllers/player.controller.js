@@ -253,6 +253,7 @@ export async function listPlayers(_req, res) {
       balance: walletMap[String(p._id)] ?? 0,
       createdAt: p.createdAt,
       isActive: activeSet.has(String(p._id)),
+      isSuspended: Boolean(p.isSuspended),
     }))
 
     return res.json({
@@ -265,5 +266,41 @@ export async function listPlayers(_req, res) {
   } catch (err) {
     console.error(err)
     return res.status(500).json({ success: false, message: 'Failed to list players' })
+  }
+}
+
+/** POST or PUT /api/admin/player/suspend */
+export async function togglePlayerSuspension(req, res) {
+  try {
+    const playerId = String(req.body?.playerId || req.body?.userId || '').trim()
+    const isSuspended = req.body?.isSuspended !== undefined ? Boolean(req.body.isSuspended) : undefined
+
+    if (!playerId || !mongoose.Types.ObjectId.isValid(playerId)) {
+      return res.status(400).json({ success: false, message: 'Valid playerId is required' })
+    }
+
+    const player = await Player.findById(playerId)
+    if (!player) {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+
+    player.isSuspended = isSuspended !== undefined ? isSuspended : !player.isSuspended
+    await player.save()
+
+    return res.json({
+      success: true,
+      message: player.isSuspended
+        ? `Player ${player.username} has been suspended (login disabled)`
+        : `Player ${player.username} has been reactivated`,
+      data: {
+        id: String(player._id),
+        username: player.username,
+        phone: player.phone,
+        isSuspended: player.isSuspended,
+      },
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ success: false, message: 'Failed to update player suspension' })
   }
 }

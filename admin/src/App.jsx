@@ -11,6 +11,7 @@ import {
   toggleGame,
   updateGameLaunchUrl,
   updatePlayerWallet,
+  togglePlayerSuspension,
   fetchPlayerHistory,
 } from './api'
 import siteLogo from './assets/image.png'
@@ -393,10 +394,12 @@ function PlayerWalletActions({
   isEditing,
   draft,
   savingWalletId,
+  suspendingPlayerId,
   onStartEdit,
   onSave,
   onCancel,
   onHistory,
+  onToggleSuspension,
   onDraftChange,
   compact = false,
 }) {
@@ -436,7 +439,7 @@ function PlayerWalletActions({
           <span className="player-balance">
             <CurrencyAmount value={player.balance ?? 0} />
           </span>
-          <div className="player-actions">
+          <div className="player-actions flex-wrap gap-1.5">
             <button
               type="button"
               onClick={() => onStartEdit(player)}
@@ -450,6 +453,19 @@ function PlayerWalletActions({
               className="btn-game btn-play btn-compact"
             >
               History
+            </button>
+            <button
+              type="button"
+              disabled={suspendingPlayerId === player.id}
+              onClick={() => onToggleSuspension(player)}
+              className={`btn-game btn-compact ${player.isSuspended ? 'btn-play' : 'btn-danger'}`}
+              title={player.isSuspended ? 'Reactivate player account' : 'Suspend player and prevent login'}
+            >
+              {suspendingPlayerId === player.id
+                ? 'Saving…'
+                : player.isSuspended
+                  ? 'Unsuspend'
+                  : 'Suspend'}
             </button>
           </div>
         </>
@@ -467,6 +483,7 @@ function Dashboard({ admin, onLogout }) {
   const [busy, setBusy] = useState(false)
   const [savingUrlId, setSavingUrlId] = useState('')
   const [savingWalletId, setSavingWalletId] = useState('')
+  const [suspendingPlayerId, setSuspendingPlayerId] = useState('')
   const [editingWalletId, setEditingWalletId] = useState('')
   const [historyPlayer, setHistoryPlayer] = useState(null)
   const [playerHistory, setPlayerHistory] = useState([])
@@ -730,6 +747,37 @@ function Dashboard({ admin, onLogout }) {
       setError(err.message)
     } finally {
       setSavingWalletId('')
+    }
+  }
+
+  async function onToggleSuspension(player) {
+    const isCurrentlySuspended = Boolean(player.isSuspended)
+    const action = isCurrentlySuspended ? 'unsuspend' : 'suspend'
+    if (
+      !window.confirm(
+        isCurrentlySuspended
+          ? `Reactivate player “${player.username}”? They will be allowed to log in.`
+          : `Suspend player “${player.username}”? They will NOT be able to log in.`,
+      )
+    ) {
+      return
+    }
+
+    setError('')
+    setSuspendingPlayerId(player.id)
+    try {
+      const res = await togglePlayerSuspension({
+        playerId: player.id,
+        isSuspended: !isCurrentlySuspended,
+      })
+      const nextSuspended = res.data?.isSuspended ?? !isCurrentlySuspended
+      setPlayers((prev) =>
+        prev.map((p) => (p.id === player.id ? { ...p, isSuspended: nextSuspended } : p)),
+      )
+    } catch (err) {
+      setError(err.message || `Failed to ${action} player`)
+    } finally {
+      setSuspendingPlayerId('')
     }
   }
 
@@ -1215,7 +1263,18 @@ function Dashboard({ admin, onLogout }) {
                               <div key={p.id} className="player-card">
                                 <span className="player-avatar">{userInitials(p.username)}</span>
                                 <div className="player-card-main">
-                                  <p className="player-card-name">{p.username}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="player-card-name">{p.username}</p>
+                                    {p.isSuspended ? (
+                                      <span className="px-1.5 py-0.5 text-[0.6rem] font-bold uppercase rounded bg-red-500/20 text-red-400 border border-red-500/30">
+                                        Suspended
+                                      </span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 text-[0.6rem] font-bold uppercase rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        Active
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="player-card-meta">
                                     {p.phone ? <span>+91 {p.phone}</span> : null}
                                     <span className="player-card-id" title={p.id}>
@@ -1229,10 +1288,12 @@ function Dashboard({ admin, onLogout }) {
                                     isEditing={isEditing}
                                     draft={draft}
                                     savingWalletId={savingWalletId}
+                                    suspendingPlayerId={suspendingPlayerId}
                                     onStartEdit={startEditWallet}
                                     onSave={onSaveWallet}
                                     onCancel={cancelEditWallet}
                                     onHistory={openPlayerHistory}
+                                    onToggleSuspension={onToggleSuspension}
                                     onDraftChange={(id, value) =>
                                       setWalletDrafts((prev) => ({ ...prev, [id]: value }))
                                     }
@@ -1249,6 +1310,7 @@ function Dashboard({ admin, onLogout }) {
                             <thead>
                               <tr>
                                 <th>Player</th>
+                                <th>Status</th>
                                 <th>Phone</th>
                                 <th>Player ID</th>
                                 <th>Balance</th>
@@ -1267,6 +1329,19 @@ function Dashboard({ admin, onLogout }) {
                                         <span className="player-avatar">{userInitials(p.username)}</span>
                                         <span className="font-semibold text-white">{p.username}</span>
                                       </div>
+                                    </td>
+                                    <td>
+                                      {p.isSuspended ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                                          Suspended
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                          Active
+                                        </span>
+                                      )}
                                     </td>
                                     <td>{p.phone ? `+91 ${p.phone}` : '—'}</td>
                                     <td>
@@ -1319,7 +1394,7 @@ function Dashboard({ admin, onLogout }) {
                                           </button>
                                         </div>
                                       ) : (
-                                        <div className="player-actions">
+                                        <div className="player-actions flex-wrap gap-1.5">
                                           <button
                                             type="button"
                                             onClick={() => startEditWallet(p)}
@@ -1333,6 +1408,19 @@ function Dashboard({ admin, onLogout }) {
                                             className="btn-game btn-play btn-compact"
                                           >
                                             History
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={suspendingPlayerId === p.id}
+                                            onClick={() => onToggleSuspension(p)}
+                                            className={`btn-game btn-compact ${p.isSuspended ? 'btn-play' : 'btn-danger'}`}
+                                            title={p.isSuspended ? 'Reactivate player and allow login' : 'Suspend player and prevent login'}
+                                          >
+                                            {suspendingPlayerId === p.id
+                                              ? 'Saving…'
+                                              : p.isSuspended
+                                                ? 'Unsuspend'
+                                                : 'Suspend'}
                                           </button>
                                         </div>
                                       )}

@@ -14,6 +14,7 @@ import {
   debitPlayer,
   listPlayers,
   updatePlayerWallet,
+  togglePlayerSuspension,
 } from '../controllers/player.controller.js'
 
 const router = Router()
@@ -29,6 +30,8 @@ router.post('/player/credit', adminRequired, creditPlayer)
 router.post('/player/debit', adminRequired, debitPlayer)
 router.post('/player/wallet', adminRequired, updatePlayerWallet)
 router.put('/player/wallet', adminRequired, updatePlayerWallet)
+router.post('/player/suspend', adminRequired, togglePlayerSuspension)
+router.put('/player/suspend', adminRequired, togglePlayerSuspension)
 router.get('/player/history', adminRequired, adminPlayerGameHistory)
 router.get('/player/list', adminRequired, listPlayers)
 

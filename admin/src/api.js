@@ -50,5 +50,7 @@ export const debitPlayer = (payload) =>
   api('/admin/player/debit', { method: 'POST', body: payload })
 export const updatePlayerWallet = (payload) =>
   api('/admin/player/wallet', { method: 'POST', body: payload })
+export const togglePlayerSuspension = (payload) =>
+  api('/admin/player/suspend', { method: 'POST', body: payload })
 export const fetchPlayerHistory = (playerId, limit = 50) =>
   api(`/admin/player/history?playerId=${encodeURIComponent(playerId)}&limit=${limit}`)

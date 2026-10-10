@@ -442,6 +442,11 @@ body {
   transform: translateY(1px);
 }
 
+.btn-game svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 .btn-play {
   color: #fff;
   background: var(--accent);

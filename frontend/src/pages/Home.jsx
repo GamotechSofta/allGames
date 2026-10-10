@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import { fetchGames, fetchGameHistory, launchGame, creditWallet } from '../api'
+import { fetchGames, fetchGameHistory, launchGame } from '../api'
 import siteLogo from '../assets/logo-123games.png'
 import HeroSection from '../components/HeroSection'
 import tpClassic from '../assets/tp_classic-Photoroom.png'
@@ -278,18 +278,24 @@ function IconSearch() {
 
 
 
-function IconRefresh({ spinning }) {
+function IconRefresh({ spinning, className = 'w-4 h-4' }) {
   return (
     <svg
       viewBox="0 0 24 24"
+      width="1.15rem"
+      height="1.15rem"
       fill="none"
       stroke="currentColor"
       strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={spinning ? 'animate-spin' : ''}
+      className={`${className} ${spinning ? 'animate-spin' : ''} shrink-0`}
+      aria-hidden="true"
     >
-      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M3 21v-5h5" />
     </svg>
   )
 }
@@ -402,9 +408,6 @@ export default function Home() {
   // Interactive controls state
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
-  const [depositOpen, setDepositOpen] = useState(false)
-  const [depositAmount, setDepositAmount] = useState(500)
-  const [depositLoading, setDepositLoading] = useState(false)
   const [variantModalOpen, setVariantModalOpen] = useState(false)
   const [selectedVariantDetail, setSelectedVariantDetail] = useState(null)
   const [toastMessage, setToastMessage] = useState('')
@@ -421,15 +424,6 @@ export default function Home() {
     }
   })
 
-  // Daily streak state
-  const [dailyClaimed, setDailyClaimed] = useState(() => {
-    try {
-      const today = new Date().toDateString()
-      return localStorage.getItem('allgames_streak_date') === today
-    } catch {
-      return false
-    }
-  })
 
   // Progressive jackpot tick simulation
   const [jackpotPool, setJackpotPool] = useState(2485620)
@@ -525,38 +519,7 @@ export default function Home() {
     })
   }
 
-  async function handleClaimDailyStreak() {
-    if (dailyClaimed) return
-    try {
-      await creditWallet(100, { remarks: 'Daily streak reward' })
-      const today = new Date().toDateString()
-      localStorage.setItem('allgames_streak_date', today)
-      setDailyClaimed(true)
-      await refreshBalance()
-      showToast('🎁 Day 3 Streak Claimed! ₹100 Added to Wallet!')
-    } catch (err) {
-      showToast(err.message || 'Could not claim daily reward')
-    }
-  }
 
-  async function handleDepositSubmit(e) {
-    e?.preventDefault()
-    const amt = Number(depositAmount)
-    if (!amt || amt <= 0) return
-    setDepositLoading(true)
-    try {
-      await creditWallet(amt, { remarks: 'Player quick topup' })
-      await refreshBalance()
-      const historyRes = await fetchGameHistory(60)
-      setHistory(historyRes.data?.feed || historyRes.data?.transactions || [])
-      setDepositOpen(false)
-      showToast(`🎉 ₹${amt.toLocaleString('en-IN')} added to your wallet!`)
-    } catch (err) {
-      showToast(err.message || 'Deposit failed')
-    } finally {
-      setDepositLoading(false)
-    }
-  }
 
   function copyText(text, label = 'Copied') {
     if (!text) return
@@ -1134,80 +1097,6 @@ export default function Home() {
     )
   }
 
-  function renderDepositModal() {
-    if (!depositOpen) return null
-    return (
-      <div className="modal-backdrop-layer" onClick={() => setDepositOpen(false)}>
-        <div className="deposit-modal-card" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="modal-close-icon-btn"
-            aria-label="Close modal"
-            onClick={() => setDepositOpen(false)}
-          >
-            <IconClose />
-          </button>
-
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-8 h-8 rounded-full bg-amber-400/20 text-amber-400 grid place-items-center">
-              <IconCoin />
-            </span>
-            <div>
-              <p className="text-[0.68rem] font-bold uppercase tracking-widest text-amber-400">Instant Cashier</p>
-              <h3 className="font-display text-xl font-extrabold text-white">Add Cash to Wallet</h3>
-            </div>
-          </div>
-          <p className="text-xs text-[var(--muted)] mb-3">
-            Select a quick recharge chip or type a custom amount to play instantly.
-          </p>
-
-          <div className="chip-presets-grid">
-            {[200, 500, 1000, 2500, 5000, 10000].map((amt) => (
-              <button
-                key={amt}
-                type="button"
-                className={`chip-preset-btn ${Number(depositAmount) === amt ? 'is-selected' : ''}`}
-                onClick={() => setDepositAmount(amt)}
-              >
-                <span>₹{amt.toLocaleString('en-IN')}</span>
-                <span className="chip-preset-bonus">+{amt >= 1000 ? '10% Bonus' : '5% Bonus'}</span>
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleDepositSubmit}>
-            <div className="deposit-input-row">
-              <span className="deposit-input-currency">₹</span>
-              <input
-                type="number"
-                min="50"
-                step="50"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-                className="deposit-text-input"
-                placeholder="Enter amount"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="submit"
-                disabled={depositLoading || !Number(depositAmount)}
-                className="btn-hero-play w-full py-3.5 text-center text-sm"
-              >
-                {depositLoading ? 'Adding Funds…' : `Confirm & Add ₹${Number(depositAmount || 0).toLocaleString('en-IN')}`}
-              </button>
-              <p className="text-[0.68rem] text-center text-[var(--muted)] flex items-center justify-center gap-1">
-                <IconCheck /> 100% Secure Instant Settlement • Zero Fees
-              </p>
-            </div>
-          </form>
-        </div>
-      </div>
-    )
-  }
-
   const showLobby = tab === 'lobby'
   const showGamesOnly = tab === 'games'
   const showHistory = tab === 'history'
@@ -1222,9 +1111,6 @@ export default function Home() {
           <span>{toastMessage}</span>
         </div>
       ) : null}
-
-      {/* Quick Deposit Modal */}
-      {renderDepositModal()}
 
       {/* Teen Patti Variants Guide Modal */}
       {renderVariantModal()}
@@ -1268,29 +1154,6 @@ export default function Home() {
         <div className="sidebar-footer">
           <div className="nav-divider" />
 
-          {/* Interactive VIP Status Card */}
-          <div className="vip-club-card">
-            <div className="flex items-center justify-between">
-              <span className="text-[0.65rem] font-bold uppercase tracking-wider text-amber-400">VIP Club</span>
-              <span className="text-[0.68rem] font-bold text-white">Tier 3 (Gold)</span>
-            </div>
-            <div className="vip-progress-track">
-              <div className="vip-progress-fill" style={{ width: '74%' }} />
-            </div>
-            <div className="flex items-center justify-between text-[0.65rem] text-[var(--muted)]">
-              <span>74% to Platinum</span>
-              <span>+5% Rebate</span>
-            </div>
-            <button
-              type="button"
-              disabled={dailyClaimed}
-              className="streak-claim-btn"
-              onClick={handleClaimDailyStreak}
-            >
-              <IconGift />
-              <span>{dailyClaimed ? 'Day 3 Claimed ✓' : 'Claim Daily Streak (₹100)'}</span>
-            </button>
-          </div>
 
           <button
             type="button"
@@ -1317,13 +1180,6 @@ export default function Home() {
             <img src={siteLogo} alt="123Games" className="site-logo site-logo-sm" />
           </div>
           <div className="mobile-topbar-right">
-            <button
-              type="button"
-              onClick={() => setDepositOpen(true)}
-              className="btn-gold-action px-2.5 py-1 text-[0.8rem]"
-            >
-              + Add
-            </button>
             <div className="chip chip-compact px-2.5 py-1">
               <p className="font-display text-[0.75rem] font-bold tracking-wide text-white">
                 ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
@@ -1355,20 +1211,12 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 ml-auto">
-            <button
-              type="button"
-              onClick={() => setDepositOpen(true)}
-              className="btn-gold-action px-3.5 py-1.5 text-xs sm:text-sm"
-            >
-              + Add Cash
-            </button>
-
-            <div className="chip header-wallet-chip px-3 py-1">
+            <div className="chip header-wallet-chip px-3.5 py-1.5 lg:px-4 lg:py-2">
               <div className="leading-tight">
-                <p className="text-[0.55rem] font-bold uppercase tracking-[0.14em] text-white/70">
+                <p className="text-[0.6rem] lg:text-[0.68rem] font-bold uppercase tracking-[0.14em] text-white/70">
                   Wallet
                 </p>
-                <p className="font-display text-xs font-bold tracking-wide text-white">
+                <p className="font-display text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-wide text-emerald-400">
                   ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
                 </p>
               </div>
@@ -1379,9 +1227,10 @@ export default function Home() {
               onClick={onRefresh}
               disabled={refreshing}
               title="Refresh Balance"
-              className="btn-game btn-purple p-2.5"
+              aria-label="Refresh Balance"
+              className="btn-game btn-purple p-2.5 lg:p-3 text-white hover:text-amber-400 hover:border-amber-400/50 transition-all flex items-center justify-center shrink-0"
             >
-              <IconRefresh spinning={refreshing} />
+              <IconRefresh spinning={refreshing} className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
             </button>
 
             <button
@@ -1619,13 +1468,6 @@ export default function Home() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setDepositOpen(true)}
-                      className="btn-hero-play px-4 py-2 text-xs font-bold"
-                    >
-                      + Add Cash
-                    </button>
-                    <button
-                      type="button"
                       onClick={onRefresh}
                       disabled={refreshing}
                       className="btn-game btn-purple profile-refresh-btn"
@@ -1710,13 +1552,6 @@ export default function Home() {
                       <p className="profile-card-subtitle">Fast navigation and security options</p>
                     </div>
                     <div className="profile-actions">
-                      <button
-                        type="button"
-                        className="btn-hero-play w-full py-2.5 text-xs text-center justify-center"
-                        onClick={() => setDepositOpen(true)}
-                      >
-                        + Add Cash to Wallet
-                      </button>
                       <button
                         type="button"
                         className="btn-game btn-play profile-action-btn"
