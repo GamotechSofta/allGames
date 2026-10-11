@@ -16,15 +16,17 @@ export function isPrivateNetworkHost(hostname) {
   return false
 }
 
+export const PROVIDER_HOME_URL = 'https://www.123games.fun/'
+
 /**
- * Return URL for external games. Empty on localhost to avoid Chrome PNA blocks
- * if the game navigates the top window.
+ * Return URL for external games. Fallback to https://www.123games.fun/
+ * so the user can go back to the 123Games home page.
  */
 export function safeGameReturnUrl() {
   try {
-    if (isPrivateNetworkHost(window.location.hostname)) return ''
+    if (isPrivateNetworkHost(window.location.hostname)) return PROVIDER_HOME_URL
     return `${window.location.origin}/?tab=games`
   } catch {
-    return ''
+    return PROVIDER_HOME_URL
   }
 }

@@ -80,8 +80,9 @@ export async function launchGame(gameId, extras = {}) {
   const user = getStoredUser()
   if (!user?.id && !user?.playerId) throw new Error('Not logged in')
 
-  // Never send localhost returnUrl to public game hosts (Chrome PNA block)
-  let returnUrl = ''
+  // Provider home page link so users can go back to 123Games
+  const defaultHomeUrl = 'https://www.123games.fun/'
+  let returnUrl = defaultHomeUrl
   try {
     const host = window.location.hostname.toLowerCase()
     const isPrivate =
@@ -93,7 +94,7 @@ export async function launchGame(gameId, extras = {}) {
       /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
     if (!isPrivate) returnUrl = `${window.location.origin}/?tab=games`
   } catch {
-    /* ignore */
+    returnUrl = defaultHomeUrl
   }
 
   const res = await request(`${API_ROOT}/api/game/launch`, {
@@ -101,7 +102,8 @@ export async function launchGame(gameId, extras = {}) {
     body: {
       userId: user.id || user.playerId,
       gameId,
-      ...(returnUrl ? { returnUrl } : {}),
+      returnUrl,
+      homeUrl: defaultHomeUrl,
       ...(extras && typeof extras === 'object' ? extras : {}),
     },
   })

@@ -60,13 +60,15 @@ function isPrivateReturnUrl(value) {
   }
 }
 
-/** Prefer client returnUrl; never fall back to a private FRONTEND_URL (Chrome PNA). */
+export const DEFAULT_PROVIDER_HOME_URL = 'https://www.123games.fun/'
+
+/** Prefer client returnUrl; never fall back to a private FRONTEND_URL (Chrome PNA). Defaults to official provider home page link. */
 function resolveReturnUrl(raw) {
   const fromBody = String(raw || '').trim()
   if (fromBody && !isPrivateReturnUrl(fromBody)) return fromBody
   const fromEnv = String(process.env.FRONTEND_URL || '').trim()
   if (fromEnv && !isPrivateReturnUrl(fromEnv)) return fromEnv
-  return ''
+  return DEFAULT_PROVIDER_HOME_URL
 }
 
 
@@ -330,7 +332,8 @@ export async function launchGame(req, res) {
     const playerId = playerIdOf(user)
     const balance = Number(wallet.balance || 0)
     const catalogLaunchBase = String(game.launchUrl || '').trim()
-    const returnUrl = resolveReturnUrl(req.body?.returnUrl)
+    const homeUrl = DEFAULT_PROVIDER_HOME_URL
+    const returnUrl = resolveReturnUrl(req.body?.returnUrl || req.body?.homeUrl) || homeUrl
 
     if (!catalogLaunchBase) {
       auditLaunch(req, 'FAILED', {
@@ -358,7 +361,8 @@ export async function launchGame(req, res) {
       .replace(/\/$/, '')
     const bal = String(balance ?? 0)
     // Admin Launch URL + platform params.
-    // Include PotLudo/operator aliases (id, game_id) so fashionbuddies can start a session.
+    // Include PotLudo/operator aliases (id, game_id) and provider home page link aliases (https://www.123games.fun/)
+    // so in-game Exit / Home / Lobby buttons take the player back to 123Games.
     const launchUrl = joinLaunchBase(catalogLaunchBase, {
       userId: playerId,
       gameId: catalogGameId,
@@ -367,6 +371,18 @@ export async function launchGame(req, res) {
       token,
       id: token,
       returnUrl,
+      return_url: returnUrl,
+      homeUrl,
+      home_url: homeUrl,
+      home: homeUrl,
+      homePageUrl: homeUrl,
+      home_page: homeUrl,
+      lobbyUrl: homeUrl,
+      lobby_url: homeUrl,
+      exitUrl: homeUrl,
+      exit_url: homeUrl,
+      backUrl: homeUrl,
+      back_url: homeUrl,
       balance: bal,
       available_balance: bal,
       wallet: bal,
@@ -406,6 +422,8 @@ export async function launchGame(req, res) {
       sessionId,
       provider: game.provider || '',
       openMode: resolveOpenMode(launchUrl, game.provider),
+      returnUrl,
+      homeUrl,
       message: 'Game launch successful',
     })
   } catch (error) {

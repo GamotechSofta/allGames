@@ -125,12 +125,29 @@ export default function GamePlay() {
       }
     }
 
+    const onMessage = (e) => {
+      try {
+        const msg = e.data
+        if (!msg) return
+        if (typeof msg === 'string') {
+          if (/exit|close|lobby|home|back/i.test(msg)) exitToGames()
+        } else if (typeof msg === 'object') {
+          const act = String(msg.action || msg.type || msg.event || msg.message || '').toLowerCase()
+          if (/exit|close|lobby|home|back/i.test(act)) exitToGames()
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     window.addEventListener('popstate', onPopState)
     window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('message', onMessage)
 
     return () => {
       window.removeEventListener('popstate', onPopState)
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('message', onMessage)
     }
   }, [canPlay, exitToGames])
 
@@ -190,25 +207,51 @@ export default function GamePlay() {
   if (!user) return <Navigate to="/login" replace />
   if (!canPlay) return <Navigate to="/" replace state={{ tab: 'games' }} />
 
+  const username = user?.username || user?.phone || 'Player'
+
   return (
     <div
       className="game-iframe-shell"
       style={{ width: size.width, height: size.height }}
     >
-      <iframe
-        ref={iframeRef}
-        title={gameName}
-        src={launchUrl}
-        className="game-iframe"
-        width={size.width}
-        height={size.height}
-        style={{ width: size.width, height: size.height }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock"
-        allow="autoplay; fullscreen; payment; clipboard-read; clipboard-write; accelerometer; gyroscope"
-        allowFullScreen
-        referrerPolicy="no-referrer-when-downgrade"
-        onLoad={onIframeLoad}
-      />
+      <header className="game-player-header">
+        <a
+          href="https://www.123games.fun/"
+          className="game-header-back"
+          onClick={(e) => {
+            e.preventDefault()
+            exitToGames()
+          }}
+          title="Back to 123Games"
+          aria-label="Back to 123Games"
+        >
+          <span className="game-header-back-arrow" aria-hidden="true">‹</span>
+          <span className="game-header-title">{gameName.toUpperCase()}</span>
+        </a>
+
+        <div className="game-header-user">
+          <span className="game-header-username">{username}</span>
+          <div className="game-header-avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+          </div>
+        </div>
+      </header>
+
+      <div className="game-iframe-wrapper">
+        <iframe
+          ref={iframeRef}
+          title={gameName}
+          src={launchUrl}
+          className="game-iframe"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-top-navigation allow-top-navigation-by-user-activation"
+          allow="autoplay; fullscreen; payment; clipboard-read; clipboard-write; accelerometer; gyroscope"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+          onLoad={onIframeLoad}
+        />
+      </div>
     </div>
   )
 }
