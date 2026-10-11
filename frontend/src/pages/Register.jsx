@@ -41,7 +41,7 @@ export default function Register() {
           </div>
         </div>
         <p className="text-sm font-semibold text-[var(--muted)]">
-          Join with 10,000 starting points
+          Join with 10,000 starting points play
         </p>
 
         {error ? (
