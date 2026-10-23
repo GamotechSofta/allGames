@@ -10,6 +10,7 @@ const variantUrls = {
   TEENPATTI_MUFLIS: 'https://www.doormart.shop/public?variant=muflis',
   TEENPATTI_FLIPPER: 'https://www.doormart.shop/public?variant=flipper',
   TEENPATTI_JHANDU: 'https://www.doormart.shop/public?variant=jhandu',
+  TEENPATTI_CUSTOM: 'https://www.doormart.shop/public?variant=custom',
 }
 
 for (const [gameId, launchUrl] of Object.entries(variantUrls)) {

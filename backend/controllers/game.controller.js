@@ -315,8 +315,10 @@ export async function launchGame(req, res) {
     const wallet = await getWallet(playerIdOf(user))
     const catalogGameId = String(gameIdRaw).trim()
     let game = await Game.findOne({ gameId: catalogGameId }).lean()
-    if (!game && catalogGameId === 'TEENPATTI_CLASSIC') {
-      game = await Game.findOne({ gameId: 'TEENPATTI' }).lean()
+    if (!game && /^TEENPATTI_/i.test(catalogGameId)) {
+      game = await Game.findOne({
+        gameId: { $in: ['TEENPATTI', 'TEENPATTI_CLASSIC'] },
+      }).lean()
     }
     if (!game) {
       auditLaunch(req, 'FAILED', { responseSummary: { message: 'Game not found' } })

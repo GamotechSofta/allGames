@@ -55,6 +55,16 @@ const variants = [
     isActive: true,
     image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80',
   },
+  {
+    gameId: 'TEENPATTI_CUSTOM',
+    name: 'Play with Friends',
+    title: 'Play with Friends',
+    launchUrl: 'https://www.doormart.shop/public?variant=custom',
+    provider: 'DIRECT',
+    status: 'active',
+    isActive: true,
+    image: 'https://images.unsplash.com/photo-1541278107931-e006523892df?auto=format&fit=crop&w=1200&q=80',
+  },
 ]
 
 for (const v of variants) {

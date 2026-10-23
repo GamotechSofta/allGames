@@ -120,17 +120,65 @@ export const TEEN_PATTI_VARIANTS = [
     image: tpJhandu,
     players: '1,110',
   },
+  {
+    id: 'custom',
+    gameId: 'TEENPATTI_CUSTOM',
+    name: 'Play with Friends',
+    title: 'Play with Friends',
+    shortTitle: 'Play with Friends',
+    tag: 'CUSTOM ROOM',
+    tagClass: 'tag-gold',
+    summary: 'Create custom rooms, choose your favorite variant, and enjoy the game together.',
+    rule: 'Create custom rooms, choose your favorite variant, and enjoy the game together.',
+    badge: '🤝 Play with Friends',
+    badgeColor: '#10b981',
+    badgeBg: 'rgba(16, 185, 129, 0.15)',
+    icon: '🤝',
+    chips: 'Custom Rooms • All Variants',
+    launchUrl: 'https://www.doormart.shop/public?variant=custom',
+    image: tpClassic,
+    players: '1,650',
+  },
 ]
 
 function getVariantMeta(game) {
   if (!game) return null
   const key = String(game.gameId || game.title || game.name || '').toLowerCase()
-  if (key.includes('ak47')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'ak47')
-  if (key.includes('muflis')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'muflis')
-  if (key.includes('flipper') || key.includes('fliiper')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'flipper')
-  if (key.includes('jhandu')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'jhandu')
-  if (key.includes('classic') || key === 'teenpatti') return TEEN_PATTI_VARIANTS.find((v) => v.id === 'classic')
+  const titleKey = String(game.title || game.name || '').toLowerCase()
+  if (key.includes('ak47') || titleKey.includes('ak47')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'ak47')
+  if (key.includes('muflis') || titleKey.includes('muflis')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'muflis')
+  if (key.includes('flipper') || key.includes('fliiper') || titleKey.includes('flipper')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'flipper')
+  if (key.includes('jhandu') || titleKey.includes('jhandu')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'jhandu')
+  if (key.includes('custom') || titleKey.includes('custom') || titleKey.includes('friends')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'custom')
+  if (key.includes('classic') || key === 'teenpatti' || titleKey.includes('classic')) return TEEN_PATTI_VARIANTS.find((v) => v.id === 'classic')
   return null
+}
+
+function mergeTeenPattiVariants(remoteGames = []) {
+  const merged = [...remoteGames]
+  for (const v of TEEN_PATTI_VARIANTS) {
+    const exists = merged.some(
+      (g) =>
+        g.gameId === v.gameId ||
+        (v.gameId === 'TEENPATTI' && g.gameId === 'TEENPATTI_CLASSIC') ||
+        String(g.title || g.name || '').toLowerCase().includes(v.id),
+    )
+    if (!exists) {
+      merged.push({
+        _id: `variant_${v.id}`,
+        gameId: v.gameId,
+        name: v.name,
+        title: v.title,
+        summary: v.summary,
+        description: v.summary,
+        provider: 'DIRECT',
+        status: 'active',
+        image: v.image,
+        launchUrl: v.launchUrl,
+      })
+    }
+  }
+  return merged
 }
 
 const LIVE_WINNERS = [
@@ -188,6 +236,7 @@ function gameImage(game) {
   if (key.includes('muflis')) return IMAGES.muflis
   if (key.includes('flipper') || key.includes('fliiper')) return IMAGES.flipper
   if (key.includes('jhandu')) return IMAGES.jhandu
+  if (key.includes('custom') || key.includes('friends')) return IMAGES.teenpatti
   if (key.includes('classic') || key === 'teenpatti' || key.includes('teen') || key.includes('patti')) return IMAGES.teenpatti
   if (game?.image && String(game.image).startsWith('http')) return game.image
   if (key.includes('ludo')) return IMAGES.ludo
@@ -200,6 +249,7 @@ function gameTag(game, index) {
   if (key.includes('muflis')) return { label: 'LOWBALL', className: 'tag-cyan' }
   if (key.includes('flipper') || key.includes('fliiper')) return { label: '4-CARDS', className: 'tag-blue' }
   if (key.includes('jhandu')) return { label: 'CYCLE JOKER', className: 'tag-purple' }
+  if (key.includes('custom') || key.includes('friends')) return { label: 'CUSTOM ROOM', className: 'tag-gold' }
   if (key.includes('classic') || key === 'teenpatti') return { label: 'CLASSIC', className: 'tag-gold' }
   if (key.includes('teen') || key.includes('patti') || index === 0) {
     return { label: 'HOT', className: 'tag-hot' }
@@ -546,7 +596,7 @@ export default function Home() {
       result = result.filter((g) => favorites.includes(g.gameId || g.gameCode))
     } else if (activeCategory === 'teenpatti') {
       result = result.filter((g) => {
-        const k = String(g.gameId || g.title || g.name || '').toLowerCase()
+        const k = `${g.gameId || ''} ${g.title || ''} ${g.name || ''}`.toLowerCase()
         return (
           k.includes('teen') ||
           k.includes('patti') ||
@@ -554,12 +604,14 @@ export default function Home() {
           k.includes('muflis') ||
           k.includes('flipper') ||
           k.includes('fliiper') ||
-          k.includes('jhandu')
+          k.includes('jhandu') ||
+          k.includes('custom') ||
+          k.includes('friends')
         )
       })
     } else if (activeCategory === 'cards') {
       result = result.filter((g) => {
-        const k = String(g.gameId || g.title || g.name || '').toLowerCase()
+        const k = `${g.gameId || ''} ${g.title || ''} ${g.name || ''}`.toLowerCase()
         return (
           k.includes('teen') ||
           k.includes('patti') ||
@@ -569,7 +621,9 @@ export default function Home() {
           k.includes('muflis') ||
           k.includes('flipper') ||
           k.includes('fliiper') ||
-          k.includes('jhandu')
+          k.includes('jhandu') ||
+          k.includes('custom') ||
+          k.includes('friends')
         )
       })
     } else if (activeCategory === 'board') {
@@ -599,29 +653,7 @@ export default function Home() {
     if (!userId) return
     fetchGames()
       .then((res) => {
-        const remoteGames = res.data || []
-        const merged = [...remoteGames]
-        for (const v of TEEN_PATTI_VARIANTS) {
-          const exists = merged.some(
-            (g) =>
-              g.gameId === v.gameId ||
-              (v.gameId === 'TEENPATTI' && g.gameId === 'TEENPATTI_CLASSIC') ||
-              String(g.title || g.name || '').toLowerCase().includes(v.id),
-          )
-          if (!exists) {
-            merged.push({
-              _id: `variant_${v.id}`,
-              gameId: v.gameId,
-              name: v.name,
-              title: v.title,
-              provider: 'DIRECT',
-              status: 'active',
-              image: v.image,
-              launchUrl: v.launchUrl,
-            })
-          }
-        }
-        setGames(merged)
+        setGames(mergeTeenPattiVariants(res.data || []))
       })
       .catch((err) => setError(err.message))
     refreshBalance().catch(() => { })
@@ -693,7 +725,7 @@ export default function Home() {
     try {
       await refreshBalance()
       const [gamesRes, historyRes] = await Promise.all([fetchGames(), fetchGameHistory(60)])
-      setGames(gamesRes.data || [])
+      setGames(mergeTeenPattiVariants(gamesRes.data || []))
       setHistory(historyRes.data?.feed || historyRes.data?.transactions || [])
       showToast('Wallet balance refreshed!')
     } catch (err) {
@@ -1180,8 +1212,8 @@ export default function Home() {
             <img src={siteLogo} alt="123Games" className="site-logo site-logo-sm" />
           </div>
           <div className="mobile-topbar-right">
-            <div className="chip chip-compact px-2.5 py-1">
-              <p className="font-display text-[0.75rem] font-bold tracking-wide text-white">
+            <div className="chip chip-compact px-2 py-0.5">
+              <p className="font-display text-[0.68rem] font-bold tracking-wide text-emerald-400">
                 ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
               </p>
             </div>
@@ -1199,24 +1231,24 @@ export default function Home() {
 
         {/* Desktop Header */}
         <header className="dash-header">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[0.7rem] font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[0.65rem] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>2,480 Players Live</span>
             </div>
-            <div className="hidden lg:flex items-center gap-1.5 text-[0.7rem] text-[var(--muted)]">
+            <div className="hidden lg:flex items-center gap-1 text-[0.65rem] text-[var(--muted)]">
               <span className="text-amber-400">🛡️</span>
               <span>100% Fair Play Verified</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 ml-auto">
-            <div className="chip header-wallet-chip px-3.5 py-1.5 lg:px-4 lg:py-2">
+          <div className="flex items-center gap-2 ml-auto">
+            <div className="chip header-wallet-chip px-2.5 py-1">
               <div className="leading-tight">
-                <p className="text-[0.6rem] lg:text-[0.68rem] font-bold uppercase tracking-[0.14em] text-white/70">
+                <p className="text-[0.52rem] font-bold uppercase tracking-[0.12em] text-white/60 leading-none">
                   Wallet
                 </p>
-                <p className="font-display text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-wide text-emerald-400">
+                <p className="font-display text-xs sm:text-sm font-bold tracking-wide text-emerald-400 leading-tight mt-0.5">
                   ₹{Number(user.balance ?? 0).toLocaleString('en-IN')}
                 </p>
               </div>
@@ -1228,20 +1260,20 @@ export default function Home() {
               disabled={refreshing}
               title="Refresh Balance"
               aria-label="Refresh Balance"
-              className="btn-game btn-purple p-2.5 lg:p-3 text-white hover:text-amber-400 hover:border-amber-400/50 transition-all flex items-center justify-center shrink-0"
+              className="btn-game btn-purple p-1.5 sm:p-2 text-white hover:text-amber-400 hover:border-amber-400/50 transition-all flex items-center justify-center shrink-0"
             >
-              <IconRefresh spinning={refreshing} className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+              <IconRefresh spinning={refreshing} className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
             </button>
 
             <button
               type="button"
               onClick={() => selectTab('wallet')}
-              className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:border-amber-400/40 transition-colors"
+              className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-lg border border-white/10 bg-white/5 hover:border-amber-400/40 transition-colors"
             >
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-black font-extrabold text-[0.7rem] grid place-items-center">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-black font-extrabold text-[0.62rem] grid place-items-center">
                 {userInitials(user.username)}
               </div>
-              <span className="text-[0.7rem] font-bold text-white max-w-[5.5rem] truncate">
+              <span className="text-[0.68rem] font-semibold text-white max-w-[5.5rem] truncate">
                 {user.username || 'Player'}
               </span>
             </button>

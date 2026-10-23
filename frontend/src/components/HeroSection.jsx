@@ -3,7 +3,8 @@ import { useEffect, useState, useMemo } from 'react'
 import './HeroSection.css'
 
 export const TEEN_PATTI_BANNER_IMG =
-  'https://cdn.dmcrms.in/gamotechSolution/documents/1791620544846-Live-Teen-Patti-Casino-Banner.png'
+  // 'https://cdn.dmcrms.in/gamotechSolution/documents/1791620544846-Live-Teen-Patti-Casino-Banner.png'
+  'https://cdn.dmcrms.in/gamotechSolution/documents/1792741516993-123games.png'
 
 export const TEEN_PATTI_BANNER_MOBILE_IMG =
   'https://cdn.dmcrms.in/gamotechSolution/documents/1791529849716-Live-Dealer-Teen-Patti-Casino-1.png'
