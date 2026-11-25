@@ -61,7 +61,6 @@ export function decryptWithPrivateKey(data) {
  */
 export async function gapRequest(endpoint, payload, gapPublicKey) {
   if (!GAP_BASE_URL()) {
-    // Optional: catalog games launch from admin Launch URL only
     throw new Error('GAP_BASE_URL is not configured (optional; wallet notify skipped)')
   }
 

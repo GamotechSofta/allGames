@@ -2,7 +2,6 @@ import bcrypt from 'bcryptjs'
 import { nanoid } from 'nanoid'
 import mongoose from 'mongoose'
 import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
-import { GameSession } from '../models/gameSession.model.js'
 import { Player, Wallet, adjustWallet, createPlayer, findPlayerById, findPlayerByPhone, getWallet } from '../store.js'
 
 function normalizePhone(raw) {
@@ -233,11 +232,7 @@ export async function updatePlayerWallet(req, res) {
 /** GET /api/admin/player/list */
 export async function listPlayers(_req, res) {
   try {
-    const [players, activeUserIds] = await Promise.all([
-      Player.find({}).sort({ createdAt: -1 }).lean(),
-      GameSession.distinct('userId'),
-    ])
-    const activeSet = new Set(activeUserIds.map(String))
+    const players = await Player.find({}).sort({ createdAt: -1 }).lean()
     const ids = players.map((p) => p._id)
     const wallets = await Wallet.find({
       $or: [{ userId: { $in: ids } }, { playerId: { $in: ids } }],
@@ -252,7 +247,7 @@ export async function listPlayers(_req, res) {
       phone: p.phone,
       balance: walletMap[String(p._id)] ?? 0,
       createdAt: p.createdAt,
-      isActive: activeSet.has(String(p._id)),
+      isActive: !Boolean(p.isSuspended),
       isSuspended: Boolean(p.isSuspended),
     }))
 
@@ -266,6 +261,64 @@ export async function listPlayers(_req, res) {
   } catch (err) {
     console.error(err)
     return res.status(500).json({ success: false, message: 'Failed to list players' })
+  }
+}
+
+/** GET /api/admin/player/history?playerId= — wallet history for any player (admin) */
+export async function adminPlayerHistory(req, res) {
+  try {
+    const playerId = String(req.query?.playerId || req.query?.userId || '').trim()
+    if (!mongoose.Types.ObjectId.isValid(playerId)) {
+      return res.status(400).json({ success: false, message: 'Valid playerId is required' })
+    }
+
+    const player = await findPlayerById(playerId)
+    if (!player) {
+      return res.status(404).json({ success: false, message: 'Player not found' })
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100)
+    const oid = new mongoose.Types.ObjectId(playerId)
+    const transactions = await GapWalletTransaction.find({
+      userId: oid,
+      type: { $in: ['DEBIT', 'CREDIT', 'debit', 'credit'] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+
+    const rows = transactions.map((t) => {
+      const type = String(t.type || '').toUpperCase()
+      return {
+        id: String(t._id),
+        kind: type,
+        type,
+        amount: Number(t.amount) || 0,
+        balanceAfter: Number(t.balanceAfter) || 0,
+        status: t.status || 'SUCCESS',
+        gameId: t.gameId || '',
+        roundId: t.roundId || '',
+        transactionId: t.transactionId,
+        rolledBack: Boolean(t.rolledBack),
+        createdAt: t.createdAt,
+      }
+    })
+
+    return res.json({
+      success: true,
+      data: {
+        player: {
+          id: playerIdOf(player),
+          username: player.username,
+          phone: player.phone,
+        },
+        feed: rows,
+        transactions: rows,
+      },
+    })
+  } catch (error) {
+    console.error('[ADMIN] player history error', error)
+    return res.status(500).json({ success: false, message: 'Failed to load player history' })
   }
 }
 

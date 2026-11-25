@@ -15,8 +15,9 @@ import mongoose from 'mongoose'
 import { registerOperatorRoutes } from './operatorRoutes.js'
 import { ensureDefaultAdmin } from './middleware/adminAuth.js'
 import adminRoutes from './routes/admin.routes.js'
-import gameRoutes from './routes/game.routes.js'
 import walletRoutes from './routes/wallet.routes.js'
+import heroBannerRoutes from './routes/heroBanner.routes.js'
+import enabledGamesRoutes from './routes/enabledGames.routes.js'
 import { userCreditWallet, userDebitWallet } from './controllers/wallet.controller.js'
 
 const app = express()
@@ -215,7 +216,6 @@ app.get('/api/v1/wallet/history', authRequired, async (req, res) => {
         balanceAfter: Number(t.balanceAfter) || 0,
         status: t.status || 'SUCCESS',
         gameId: t.gameId || '',
-        gameTitle: t.gameId || 'Wallet',
         roundId: t.roundId || '',
         transactionId: t.transactionId,
         rolledBack: Boolean(t.rolledBack),
@@ -238,10 +238,12 @@ app.get('/api/v1/wallet/history', authRequired, async (req, res) => {
 
 app.use('/api/admin', adminRoutes)
 app.use('/api/v1/admin', adminRoutes)
-app.use('/api/game', gameRoutes)
-app.use('/api/v1/game', gameRoutes)
 app.use('/api/wallet', walletRoutes)
 app.use('/api/v1/wallet', walletRoutes)
+app.use('/api/hero-banners', heroBannerRoutes)
+app.use('/api/v1/hero-banners', heroBannerRoutes)
+app.use('/api/enabled-games', enabledGamesRoutes)
+app.use('/api/v1/enabled-games', enabledGamesRoutes)
 
 async function start() {
   await connectDb(process.env.MONGODB_URI)

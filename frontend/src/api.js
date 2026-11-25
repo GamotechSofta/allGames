@@ -53,61 +53,15 @@ export const debitWallet = (amount, extras = {}) =>
     body: { amount, ...extras },
   })
 
-export const fetchGames = () =>
-  request(`${API_ROOT}/api/game/list?fields=home&limit=24`)
-
-/** Player game history: launches + wallet credit/debit rows */
-export const fetchGameHistory = (limit = 50) =>
-  request(`${API_ROOT}/api/game/history?limit=${limit}`)
-
 /** Player credit/debit history from wallet APIs */
 export const fetchHistory = (limit = 50) =>
   request(`${AUTH_BASE}/wallet/history?limit=${limit}`)
 
-export function extractLaunchUrl(res) {
-  return (
-    res?.launchUrl ||
-    res?.data?.launchUrl ||
-    res?.url ||
-    res?.gameUrl ||
-    res?.sessionUrl ||
-    res?.redirectUrl ||
-    ''
-  )
-}
+/** Active hero banners for the lobby */
+export const fetchHeroBanners = () =>
+  request(`${API_ROOT}/api/hero-banners`)
 
-export async function launchGame(gameId, extras = {}) {
-  const user = getStoredUser()
-  if (!user?.id && !user?.playerId) throw new Error('Not logged in')
+/** Enabled games for the lobby (from backend GAMES_API + OPERATOR_ID) */
+export const fetchEnabledGames = () =>
+  request(`${API_ROOT}/api/enabled-games`)
 
-  // Provider home page link so users can go back to 123Games
-  const defaultHomeUrl = 'https://www.123games.fun/'
-  let returnUrl = defaultHomeUrl
-  try {
-    const host = window.location.hostname.toLowerCase()
-    const isPrivate =
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '[::1]' ||
-      /^10\./.test(host) ||
-      /^192\.168\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
-    if (!isPrivate) returnUrl = `${window.location.origin}/?tab=games`
-  } catch {
-    returnUrl = defaultHomeUrl
-  }
-
-  const res = await request(`${API_ROOT}/api/game/launch`, {
-    method: 'POST',
-    body: {
-      userId: user.id || user.playerId,
-      gameId,
-      returnUrl,
-      homeUrl: defaultHomeUrl,
-      ...(extras && typeof extras === 'object' ? extras : {}),
-    },
-  })
-  const launchUrl = extractLaunchUrl(res)
-  if (!launchUrl) throw new Error('Launch URL missing from response')
-  return { ...res, launchUrl }
-}

@@ -1,253 +1,469 @@
-
-import { useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './HeroSection.css'
 
-export const TEEN_PATTI_BANNER_IMG =
-  // 'https://cdn.dmcrms.in/gamotechSolution/documents/1791620544846-Live-Teen-Patti-Casino-Banner.png'
-  'https://cdn.dmcrms.in/gamotechSolution/documents/1792741516993-123games.png'
+function IconChevronLeft() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  )
+}
 
-export const TEEN_PATTI_BANNER_MOBILE_IMG =
-  'https://cdn.dmcrms.in/gamotechSolution/documents/1791529849716-Live-Dealer-Teen-Patti-Casino-1.png'
+function IconChevronRight() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
 
-export default function HeroSection({
-  teenPattiGame,
-  games = [],
-  onPlay,
-  selectTab,
-  setActiveCategory,
-  onPlayTeenPatti,
-  onExploreVariants,
-  banners,
-}) {
-  const featuredGame = useMemo(() => {
-    if (teenPattiGame) return teenPattiGame
+function prefersReducedMotion() {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
 
-    if (games.length > 0) {
-      return (
-        games.find((g) => {
-          const k = String(
-            g.gameId || g.title || g.name || ''
-          ).toLowerCase()
+export default function HeroSection({ banners = [], loading = false }) {
+  const slides = useMemo(
+    () => (Array.isArray(banners) ? banners.filter(Boolean) : []),
+    [banners],
+  )
+  const slideCount = slides.length
+  const canLoop = slideCount >= 3
 
-          return k.includes('teen') || k.includes('patti')
-        }) || games[0]
-      )
+  const trackRef = useRef(null)
+  const [index, setIndex] = useState(0)
+  const [announcement, setAnnouncement] = useState('')
+  const [paused, setPaused] = useState(false)
+
+  const settledIndexRef = useRef(0)
+  const pendingTargetRef = useRef(null)
+  const requestStartScrollRef = useRef(null)
+  const scrollIdRef = useRef(0)
+  const hasInteractedRef = useRef(false)
+  const heldDirectionRef = useRef(0)
+  const inDomOrderTripRef = useRef(false)
+
+  const getVisualOrder = useCallback((track) => {
+    return Array.from(track.children)
+      .map((el, domIndex) => ({ el, domIndex, offset: el.offsetLeft }))
+      .sort((a, b) => a.offset - b.offset)
+  }, [])
+
+  const getNearestDomIndex = useCallback((track) => {
+    const center = track.scrollLeft + track.clientWidth / 2
+    let bestIndex = 0
+    let bestDist = Infinity
+    const children = track.children
+    for (let i = 0; i < children.length; i += 1) {
+      const el = children[i]
+      const slideCenter = el.offsetLeft + el.offsetWidth / 2
+      const dist = Math.abs(slideCenter - center)
+      if (dist < bestDist) {
+        bestDist = dist
+        bestIndex = i
+      }
     }
+    return bestIndex
+  }, [])
 
-    return null
-  }, [teenPattiGame, games])
+  const syncParking = useCallback(
+    (currentDomIndex, { lockOverflow = true, clearParking = false } = {}) => {
+      const track = trackRef.current
+      if (!track || !canLoop) return
+      const anchorEl = track.children[currentDomIndex]
+      if (!anchorEl) return
 
-  const defaultBanners = useMemo(
-    () => [
-      {
-        id: 0,
-        pill: '🃏 LIVE DEALER TEEN PATTI • 5 EXCITING MODES',
-        pillClass: 'hero-pill-fire',
-        title: 'Live Dealer Teen Patti Casino',
-        desc:
-          'Experience India’s premier multiplayer card arena. Play Classic, AK47 Wild Jokers, Muflis Lowball, Flipper & Jhandu Cycle Jokers.',
-        image: TEEN_PATTI_BANNER_IMG,
-        mobileImage: TEEN_PATTI_BANNER_MOBILE_IMG,
-        stats: [
-          { label: '8,240 Total Active Players', color: '#86efac' },
-          { label: '5 Unique Rule Sets', color: '#fbbf24' },
-          { label: 'Certified RNG Tables', color: '#60a5fa' },
-        ],
-        primaryLabel: 'Play Teen Patti Now',
-        primaryAction: () => {
-          if (onPlayTeenPatti) {
-            onPlayTeenPatti()
-          } else if (featuredGame && onPlay) {
-            onPlay(featuredGame, { variant: 'classic' })
-          } else if (selectTab) {
-            selectTab('games')
-          }
-        },
-        secondaryLabel: 'Explore All 5 Variants',
-        secondaryAction: () => {
-          if (onExploreVariants) {
-            onExploreVariants()
-          } else {
-            if (setActiveCategory) {
-              setActiveCategory('teenpatti')
+      const nextValue = clearParking ? '' : String(currentDomIndex)
+      const prevValue = track.style.getPropertyValue('--current').trim()
+      if (prevValue === nextValue) return
+
+      const before = anchorEl.offsetLeft
+      const prevSnap = track.style.scrollSnapType
+      const prevBehavior = track.style.scrollBehavior
+
+      track.style.scrollSnapType = 'none'
+      track.style.scrollBehavior = 'auto'
+      if (lockOverflow) {
+        track.style.overflowX = 'hidden'
+      }
+
+      if (clearParking) {
+        track.style.removeProperty('--current')
+      } else {
+        track.style.setProperty('--current', nextValue)
+      }
+
+      const after = anchorEl.offsetLeft
+      if (after !== before) {
+        track.scrollLeft += after - before
+      }
+
+      track.style.scrollSnapType = prevSnap
+      track.style.scrollBehavior = prevBehavior
+
+      if (lockOverflow) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (trackRef.current) {
+              trackRef.current.style.overflowX = ''
             }
-            if (selectTab) selectTab('games')
-          }
-        },
-      },
-    ],
-    [
-      featuredGame,
-      onPlay,
-      onPlayTeenPatti,
-      onExploreVariants,
-      selectTab,
-      setActiveCategory,
-    ]
+          })
+        })
+      }
+    },
+    [canLoop],
   )
 
-  const bannerList =
-    banners && banners.length > 0 ? banners : defaultBanners
+  const scrollToDomIndex = useCallback(
+    (targetDomIndex, { instant = false } = {}) => {
+      const track = trackRef.current
+      if (!track) return
+      const targetEl = track.children[targetDomIndex]
+      if (!targetEl) return
 
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
+      const targetLeft =
+        targetEl.offsetLeft - (track.clientWidth - targetEl.offsetWidth) / 2
+      const useInstant = instant || prefersReducedMotion()
 
+      scrollIdRef.current += 1
+      pendingTargetRef.current = targetDomIndex
+      requestStartScrollRef.current = Math.round(track.scrollLeft)
+      setIndex(targetDomIndex)
+
+      track.scrollTo({
+        left: Math.max(0, targetLeft),
+        behavior: useInstant ? 'auto' : 'smooth',
+      })
+
+      if (useInstant) {
+        pendingTargetRef.current = null
+        requestStartScrollRef.current = null
+        settledIndexRef.current = targetDomIndex
+        inDomOrderTripRef.current = false
+        syncParking(targetDomIndex, { lockOverflow: false })
+      }
+    },
+    [syncParking],
+  )
+
+  const stepBy = useCallback(
+    (delta, { userInitiated = true } = {}) => {
+      const track = trackRef.current
+      if (!track || slideCount <= 1) return
+
+      if (userInitiated) {
+        hasInteractedRef.current = true
+      }
+
+      if (inDomOrderTripRef.current) {
+        heldDirectionRef.current = delta
+        return
+      }
+
+      const baseDomIndex =
+        pendingTargetRef.current !== null
+          ? pendingTargetRef.current
+          : getNearestDomIndex(track)
+
+      if (canLoop) {
+        const visual = getVisualOrder(track)
+        const visualPos = visual.findIndex((item) => item.domIndex === baseDomIndex)
+        if (visualPos === -1) return
+        const nextVisualPos = visualPos + delta
+        if (nextVisualPos < 0 || nextVisualPos >= visual.length) return
+        const target = visual[nextVisualPos]
+        scrollToDomIndex(target.domIndex)
+      } else {
+        const nextDomIndex = (baseDomIndex + delta + slideCount) % slideCount
+        scrollToDomIndex(nextDomIndex)
+      }
+    },
+    [canLoop, getNearestDomIndex, getVisualOrder, scrollToDomIndex, slideCount],
+  )
+
+  const goToMarker = useCallback(
+    (targetDomIndex) => {
+      const track = trackRef.current
+      if (!track || slideCount <= 1) return
+      hasInteractedRef.current = true
+
+      const currentDomIndex =
+        pendingTargetRef.current !== null
+          ? pendingTargetRef.current
+          : getNearestDomIndex(track)
+
+      if (targetDomIndex === currentDomIndex) return
+
+      if (canLoop) {
+        inDomOrderTripRef.current = true
+        syncParking(currentDomIndex, { lockOverflow: false, clearParking: true })
+      }
+      scrollToDomIndex(targetDomIndex)
+    },
+    [canLoop, getNearestDomIndex, scrollToDomIndex, slideCount, syncParking],
+  )
+
+  // Initial layout, sibling-count() fallback, and initial parking
   useEffect(() => {
-    if (bannerList.length <= 1 || isPaused) return
+    const track = trackRef.current
+    setIndex(0)
+    settledIndexRef.current = 0
+    pendingTargetRef.current = null
+    requestStartScrollRef.current = null
+    hasInteractedRef.current = false
+    inDomOrderTripRef.current = false
+    heldDirectionRef.current = 0
+    setAnnouncement('')
 
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % bannerList.length)
-    }, 6000)
+    if (!track || slideCount <= 1) return
 
-    return () => clearInterval(timer)
-  }, [bannerList.length, isPaused])
+    if (
+      typeof CSS !== 'undefined' &&
+      typeof CSS.supports === 'function' &&
+      !CSS.supports('order: sibling-count()')
+    ) {
+      track.style.setProperty('--children-count', String(slideCount))
+    } else {
+      track.style.removeProperty('--children-count')
+    }
 
-  const safeIndex =
-    currentIndex < bannerList.length ? currentIndex : 0
+    if (canLoop) {
+      track.style.removeProperty('--current')
+      track.scrollLeft = 0
+      syncParking(0, { lockOverflow: false })
+    } else {
+      track.style.removeProperty('--current')
+      track.scrollLeft = 0
+    }
+  }, [slideCount, canLoop, syncParking])
 
-  const activeBanner = bannerList[safeIndex]
+  // Track live scroll + settled scrollend (with debounced fallback)
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || slideCount <= 1) return undefined
 
-  if (!activeBanner) return null
+    let rafId = 0
+    let fallbackTimer = 0
+    const supportsScrollEnd = 'onscrollend' in window
 
-  const handlePrev = (e) => {
-    e.stopPropagation()
-    setCurrentIndex(
-      (prev) => (prev - 1 + bannerList.length) % bannerList.length
+    function handleSettled(settledScrollId) {
+      if (settledScrollId !== scrollIdRef.current) return
+      const currentLeft = Math.round(track.scrollLeft)
+      if (
+        pendingTargetRef.current !== null &&
+        requestStartScrollRef.current !== null &&
+        currentLeft === requestStartScrollRef.current &&
+        getNearestDomIndex(track) !== pendingTargetRef.current
+      ) {
+        return
+      }
+
+      const nearest = getNearestDomIndex(track)
+      pendingTargetRef.current = null
+      requestStartScrollRef.current = null
+
+      const replayDelta = heldDirectionRef.current
+      heldDirectionRef.current = 0
+      inDomOrderTripRef.current = false
+
+      if (canLoop) {
+        syncParking(nearest, { lockOverflow: replayDelta === 0 })
+      }
+
+      setIndex((prev) => (prev === nearest ? prev : nearest))
+
+      if (nearest !== settledIndexRef.current) {
+        settledIndexRef.current = nearest
+        if (hasInteractedRef.current) {
+          setAnnouncement(`Slide ${nearest + 1} of ${slideCount}`)
+        }
+      }
+
+      if (replayDelta !== 0) {
+        stepBy(replayDelta, { userInitiated: true })
+      }
+    }
+
+    function onScroll() {
+      if (pendingTargetRef.current === null) {
+        hasInteractedRef.current = true
+        if (!rafId) {
+          rafId = requestAnimationFrame(() => {
+            rafId = 0
+            if (pendingTargetRef.current !== null) return
+            const nearest = getNearestDomIndex(track)
+            setIndex((prev) => (prev === nearest ? prev : nearest))
+          })
+        }
+      }
+
+      if (!supportsScrollEnd) {
+        clearTimeout(fallbackTimer)
+        const idAtScroll = scrollIdRef.current
+        fallbackTimer = setTimeout(() => handleSettled(idAtScroll), 140)
+      }
+    }
+
+    function onScrollEnd() {
+      handleSettled(scrollIdRef.current)
+    }
+
+    track.addEventListener('scroll', onScroll, { passive: true })
+    if (supportsScrollEnd) {
+      track.addEventListener('scrollend', onScrollEnd)
+    }
+
+    return () => {
+      track.removeEventListener('scroll', onScroll)
+      if (supportsScrollEnd) {
+        track.removeEventListener('scrollend', onScrollEnd)
+      }
+      if (rafId) cancelAnimationFrame(rafId)
+      clearTimeout(fallbackTimer)
+    }
+  }, [canLoop, getNearestDomIndex, slideCount, stepBy, syncParking])
+
+  // Auto-scroll smoothly every 5 seconds
+  useEffect(() => {
+    if (slideCount <= 1 || paused) return undefined
+    const timer = setTimeout(() => {
+      stepBy(1, { userInitiated: false })
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [slideCount, index, paused, stepBy])
+
+  if (loading) {
+    return (
+      <section className="hero-section" aria-busy="true" aria-label="Loading promotions">
+        <div className="hero-slide hero-slide-skeleton" />
+      </section>
     )
   }
 
-  const handleNext = (e) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev + 1) % bannerList.length)
+  if (!slideCount) {
+    return (
+      <section className="hero-section" aria-label="Promotions">
+        <div className="hero-slide hero-slide-empty">
+          <div className="hero-empty-copy">
+            <p className="hero-pill">123GAMES</p>
+            <h2 className="hero-title">Welcome to the lobby</h2>
+            <p className="hero-subtitle">
+              Your wallet, history, and account tools live here. Hero banners will appear once
+              they are published from Admin.
+            </p>
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (
     <section
-      className="hero-carousel-container"
-      aria-label="Promotions and Featured Teen Patti Game"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
+      className="hero-section"
+      aria-roledescription="carousel"
+      aria-label="Promotions"
+      onPointerDown={() => setPaused(true)}
+      onPointerUp={() => setPaused(false)}
+      onPointerCancel={() => setPaused(false)}
     >
-      {(() => {
-        const media = (
-          <>
-            <div className="hero-slide-backdrop" aria-hidden="true">
+      {slideCount > 1 ? (
+        <div className="hero-controls">
+          <button
+            type="button"
+            className="hero-nav hero-nav-prev"
+            aria-label="Previous banner"
+            onClick={() => stepBy(-1)}
+          >
+            <IconChevronLeft />
+          </button>
+          <button
+            type="button"
+            className="hero-nav hero-nav-next"
+            aria-label="Next banner"
+            onClick={() => stepBy(1)}
+          >
+            <IconChevronRight />
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        ref={trackRef}
+        className={`hero-track ${canLoop ? 'is-loopable' : ''}`}
+        tabIndex={slideCount > 1 ? 0 : undefined}
+        role="group"
+        aria-label="Banner slides"
+      >
+        {slides.map((slide, i) => {
+          const desktopImage = slide.image || slide.mobileImage || ''
+          const mobileImage = slide.mobileImage || slide.image || ''
+          const altText = slide.title || `Promotional banner ${i + 1}`
+
+          const mediaContent = desktopImage ? (
+            <picture className="hero-picture">
+              {mobileImage && mobileImage !== desktopImage ? (
+                <source media="(max-width: 768px)" srcSet={mobileImage} />
+              ) : null}
               <img
-                src={activeBanner.image}
-                alt=""
-                className="hero-slide-backdrop-img"
-              />
-            </div>
-            <picture className="hero-slide-media">
-              {activeBanner.mobileImage && (
-                <source
-                  media="(max-width: 768px)"
-                  srcSet={activeBanner.mobileImage}
-                />
-              )}
-              <img
-                key={activeBanner.image}
-                className="hero-slide-img"
-                src={activeBanner.image}
-                alt={activeBanner.title || 'Featured banner'}
-                loading={safeIndex === 0 ? 'eager' : 'lazy'}
-                fetchPriority={safeIndex === 0 ? 'high' : 'auto'}
-                decoding="async"
+                src={desktopImage}
+                alt={altText}
+                className="hero-image"
+                fetchPriority={i === 0 ? 'high' : 'low'}
+                loading={i === 0 ? undefined : 'lazy'}
               />
             </picture>
-          </>
-        )
-
-        const label = activeBanner.title || 'Open banner'
-
-        if (activeBanner.link) {
-          return (
-            <a
-              className="hero-slide hero-slide-link"
-              href={activeBanner.link}
-              target={activeBanner.newTab ? '_blank' : undefined}
-              rel={activeBanner.newTab ? 'noopener noreferrer' : undefined}
-              aria-label={label}
-            >
-              {media}
-            </a>
+          ) : (
+            <div className="hero-image hero-image-fallback" role="img" aria-label={altText} />
           )
-        }
 
-        return (
-          <button
-            type="button"
-            className="hero-slide hero-slide-link"
-            onClick={activeBanner.primaryAction}
-            aria-label={label}
-          >
-            {media}
-          </button>
-        )
-      })()}
-
-      {bannerList.length > 1 && (
-        <>
-          <button
-            type="button"
-            className="hero-nav-btn hero-nav-prev"
-            onClick={handlePrev}
-            aria-label="Previous banner"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          return (
+            <article
+              key={slide._id || slide.id || i}
+              className="hero-slide"
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${slideCount}`}
             >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+              <div className="hero-media">
+                {slide.ctaUrl ? (
+                  <a
+                    href={slide.ctaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hero-link"
+                    aria-label={altText}
+                  >
+                    {mediaContent}
+                  </a>
+                ) : (
+                  mediaContent
+                )}
+              </div>
+            </article>
+          )
+        })}
+      </div>
 
-          <button
-            type="button"
-            className="hero-nav-btn hero-nav-next"
-            onClick={handleNext}
-            aria-label="Next banner"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
+      <p className="hero-sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
 
-          <div className="hero-dots-bar">
-            {bannerList.map((banner, i) => (
-              <button
-                key={banner.id ?? i}
-                type="button"
-                className={`hero-dot ${
-                  i === safeIndex ? 'is-active' : ''
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setCurrentIndex(i)
-                }}
-                aria-label={`Go to slide ${i + 1}`}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {slideCount > 1 ? (
+        <nav className="hero-dots" aria-label="Choose a banner">
+          {slides.map((slide, i) => (
+            <button
+              key={slide._id || slide.id || i}
+              type="button"
+              aria-current={i === index ? 'true' : undefined}
+              aria-label={`Show banner ${i + 1} of ${slideCount}`}
+              className={`hero-dot ${i === index ? 'is-active' : ''}`}
+              onClick={() => goToMarker(i)}
+            />
+          ))}
+        </nav>
+      ) : null}
     </section>
   )
 }

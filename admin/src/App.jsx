@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  addGame,
   addPlayer,
   adminLogin,
-  deleteGame,
   getAdmin,
-  listGames,
   listPlayers,
   setAdmin,
-  toggleGame,
-  updateGameLaunchUrl,
   updatePlayerWallet,
   togglePlayerSuspension,
   fetchPlayerHistory,
+  listHeroBanners,
+  addHeroBanner,
+  updateHeroBanner,
+  toggleHeroBanner,
+  deleteHeroBanner,
 } from './api'
 import siteLogo from './assets/image.png'
 
@@ -38,15 +38,27 @@ function IconPlayers() {
   )
 }
 
-function IconGames() {
+function IconBanners() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 15l4.5-4.5a2 2 0 0 1 2.8 0L16 16" />
+      <path d="M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
+      <circle cx="8.5" cy="9" r="1.2" />
     </svg>
   )
+}
+
+const EMPTY_BANNER_FORM = {
+  title: '',
+  subtitle: '',
+  pill: '',
+  image: '',
+  mobileImage: '',
+  ctaLabel: '',
+  ctaUrl: '',
+  sortOrder: '0',
+  status: 'active',
 }
 
 function IconMenu() {
@@ -136,25 +148,7 @@ function historyKind(row) {
   return String(row?.type || row?.kind || '').toUpperCase()
 }
 
-function isLaunchHistoryRow(row) {
-  return historyKind(row) === 'LAUNCH'
-}
-
-function isWalletHistoryRow(row) {
-  const k = historyKind(row)
-  return k === 'CREDIT' || k === 'DEBIT' || k === 'BET' || k === 'WIN'
-}
-
 function PlayerHistoryModal({ player, history, loading, onClose }) {
-  const [historyView, setHistoryView] = useState('game')
-
-  const gameHistory = useMemo(() => history.filter(isLaunchHistoryRow), [history])
-  const walletHistory = useMemo(() => history.filter(isWalletHistoryRow), [history])
-  const visibleHistory = historyView === 'game' ? gameHistory : walletHistory
-
-  useEffect(() => {
-    setHistoryView('game')
-  }, [player?.id])
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'Escape') onClose()
@@ -181,7 +175,7 @@ function PlayerHistoryModal({ player, history, loading, onClose }) {
               {player.username}
             </h2>
             <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-              {player.phone ? `+91 ${player.phone}` : shortId(player.id)} · Game launches & wallet activity
+              {player.phone ? `+91 ${player.phone}` : shortId(player.id)} · Wallet activity
             </p>
           </div>
           <button
@@ -195,38 +189,13 @@ function PlayerHistoryModal({ player, history, loading, onClose }) {
         </div>
 
         <div className="admin-modal-body">
-          <div className="history-tabs mb-4" role="tablist" aria-label="History type">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={historyView === 'game'}
-              className={`history-tab ${historyView === 'game' ? 'is-active' : ''}`}
-              onClick={() => setHistoryView('game')}
-            >
-              Game history
-              <span className="history-tab-count">{gameHistory.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={historyView === 'wallet'}
-              className={`history-tab ${historyView === 'wallet' ? 'is-active' : ''}`}
-              onClick={() => setHistoryView('wallet')}
-            >
-              Wallet history
-              <span className="history-tab-count">{walletHistory.length}</span>
-            </button>
-          </div>
-
           {loading ? (
             <p className="py-12 text-center text-sm font-semibold text-[var(--muted)]">
               Loading history…
             </p>
-          ) : !visibleHistory.length ? (
+          ) : !history.length ? (
             <p className="py-12 text-center text-sm font-semibold text-[var(--muted)]">
-              {historyView === 'game'
-                ? 'No game launches yet for this player.'
-                : 'No wallet transactions yet for this player.'}
+              No wallet transactions yet for this player.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -234,54 +203,33 @@ function PlayerHistoryModal({ player, history, loading, onClose }) {
                 <thead>
                   <tr>
                     <th>Type</th>
-                    <th>Game</th>
                     <th>Details</th>
                     <th>Amount</th>
                     <th>When</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleHistory.map((row) => {
-                    const type = String(row.type || row.kind || '').toUpperCase()
-                    const isLaunch = type === 'LAUNCH'
+                  {history.map((row) => {
+                    const type = historyKind(row)
                     const isDebit = type === 'DEBIT'
                     const isCredit = type === 'CREDIT'
-                    const label = isLaunch
-                      ? 'PLAY'
-                      : isDebit
-                        ? 'DEBIT'
-                        : isCredit
-                          ? 'CREDIT'
-                          : type || 'TX'
+                    const label = isDebit ? 'DEBIT' : isCredit ? 'CREDIT' : type || 'TX'
                     return (
                       <tr key={`${label}-${row.id}`}>
                         <td>
-                          <span
-                            className={`status-pill ${
-                              isLaunch ? 'active' : isDebit ? 'inactive' : 'active'
-                            }`}
-                          >
+                          <span className={`status-pill ${isDebit ? 'inactive' : 'active'}`}>
                             {label}
                           </span>
                         </td>
-                        <td className="font-semibold text-white">
-                          {row.gameTitle || row.gameId || 'Wallet'}
-                        </td>
                         <td className="text-xs text-[var(--muted)]">
-                          {isLaunch
-                            ? `Session ${shortId(row.sessionId)}`
-                            : shortId(row.transactionId || row.roundId)}
+                          {shortId(row.transactionId || row.roundId || row.gameId)}
                           {row.rolledBack ? ' · rolled back' : ''}
                         </td>
                         <td className="font-display font-bold">
-                          {isLaunch ? (
-                            <span className="text-[var(--muted)]">—</span>
-                          ) : (
-                            <span className={isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'}>
-                              {isDebit ? '−' : '+'}₹
-                              {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
-                            </span>
-                          )}
+                          <span className={isDebit ? 'text-[#fda4af]' : 'text-[var(--lime)]'}>
+                            {isDebit ? '−' : '+'}₹
+                            {Math.abs(Number(row.amount) || 0).toLocaleString('en-IN')}
+                          </span>
                         </td>
                         <td className="text-xs text-[var(--muted)]">{formatWhen(row.createdAt)}</td>
                       </tr>
@@ -337,7 +285,7 @@ function Login({ onLogin }) {
           </div>
         </div>
         <p className="text-sm font-semibold text-[var(--muted)]">
-          Manage players, wallets, and game catalog
+          Manage players and wallets
         </p>
 
         {error ? (
@@ -379,14 +327,6 @@ function Login({ onLogin }) {
       </form>
     </div>
   )
-}
-
-const EMPTY_GAME_FORM = {
-  name: '',
-  gameId: '',
-  provider: '',
-  launchUrl: '',
-  status: 'active',
 }
 
 function PlayerWalletActions({
@@ -477,23 +417,21 @@ function PlayerWalletActions({
 function Dashboard({ admin, onLogout }) {
   const [tab, setTab] = useState('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [games, setGames] = useState([])
   const [players, setPlayers] = useState([])
+  const [banners, setBanners] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [savingUrlId, setSavingUrlId] = useState('')
   const [savingWalletId, setSavingWalletId] = useState('')
   const [suspendingPlayerId, setSuspendingPlayerId] = useState('')
   const [editingWalletId, setEditingWalletId] = useState('')
   const [historyPlayer, setHistoryPlayer] = useState(null)
   const [playerHistory, setPlayerHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [urlDrafts, setUrlDrafts] = useState({})
   const [walletDrafts, setWalletDrafts] = useState({})
   const [playerSearch, setPlayerSearch] = useState('')
-  const [gameSearch, setGameSearch] = useState('')
   const [refreshing, setRefreshing] = useState('')
-  const [gameForm, setGameForm] = useState(EMPTY_GAME_FORM)
+  const [bannerForm, setBannerForm] = useState(EMPTY_BANNER_FORM)
+  const [editingBannerId, setEditingBannerId] = useState('')
   const [playerForm, setPlayerForm] = useState({
     username: '',
     phone: '',
@@ -501,20 +439,12 @@ function Dashboard({ admin, onLogout }) {
     balance: '10000',
   })
 
-  const activeGames = useMemo(
-    () => games.filter((g) => g.status === 'active' || g.isActive).length,
-    [games],
-  )
   const totalBalance = useMemo(
     () => players.reduce((sum, p) => sum + (Number(p.balance) || 0), 0),
     [players],
   )
-  const inactiveGames = useMemo(
-    () => games.filter((g) => !(g.status === 'active' || g.isActive)).length,
-    [games],
-  )
   const activePlayers = useMemo(
-    () => players.filter((p) => p.isActive).length,
+    () => players.filter((p) => !p.isSuspended).length,
     [players],
   )
   const topPlayers = useMemo(
@@ -524,39 +454,24 @@ function Dashboard({ admin, onLogout }) {
         .slice(0, 4),
     [players],
   )
-  const liveGames = useMemo(
-    () => games.filter((g) => g.status === 'active' || g.isActive),
-    [games],
-  )
-  const hiddenGames = useMemo(
-    () => games.filter((g) => !(g.status === 'active' || g.isActive)),
-    [games],
-  )
-  const catalogPreview = useMemo(
-    () =>
-      [
-        ...liveGames.map((g) => ({ ...g, isLive: true })),
-        ...hiddenGames.map((g) => ({ ...g, isLive: false })),
-      ].slice(0, 5),
-    [liveGames, hiddenGames],
-  )
-  const catalogCoverage = useMemo(
-    () => (games.length ? Math.round((activeGames / games.length) * 100) : 0),
-    [games.length, activeGames],
+
+  const activeBanners = useMemo(
+    () => banners.filter((b) => b.status === 'active' || b.isActive).length,
+    [banners],
   )
 
   const pageMeta = {
     dashboard: {
       title: 'Dashboard',
-      subtitle: 'Platform overview — players, wallets, and game catalog at a glance.',
+      subtitle: 'Platform overview — players, wallets, and hero banners.',
     },
     players: {
       title: 'Players',
-      subtitle: 'Manage player accounts, adjust wallets, and review game activity from one place.',
+      subtitle: 'Manage player accounts, adjust wallets, and review activity.',
     },
-    games: {
-      title: 'Games',
-      subtitle: 'Add titles to the catalog, configure launch URLs, and control which games are live.',
+    banners: {
+      title: 'Hero Banners',
+      subtitle: 'Create and manage lobby hero banners shown on the player home screen.',
     },
   }
 
@@ -569,28 +484,16 @@ function Dashboard({ admin, onLogout }) {
     })
   }, [players, playerSearch])
 
-  const filteredGames = useMemo(() => {
-    const q = gameSearch.trim().toLowerCase()
-    if (!q) return games
-    return games.filter((g) => {
-      const haystack = [g.title, g.name, g.gameId, g.provider, g.launchUrl]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(q)
-    })
-  }, [games, gameSearch])
-
   async function refreshTabData() {
     setRefreshing(tab)
     setError('')
     try {
-      if (tab === 'dashboard') {
-        await Promise.all([refreshPlayers(), refreshGames()])
-      } else if (tab === 'players') {
-        await refreshPlayers()
+      if (tab === 'banners') {
+        await refreshBanners()
+      } else if (tab === 'dashboard') {
+        await Promise.all([refreshPlayers(), refreshBanners()])
       } else {
-        await refreshGames()
+        await refreshPlayers()
       }
     } catch (err) {
       setError(err.message)
@@ -599,19 +502,14 @@ function Dashboard({ admin, onLogout }) {
     }
   }
 
-  async function refreshGames() {
-    const res = await listGames()
-    const rows = res.data || []
-    setGames(rows)
-    setUrlDrafts(
-      Object.fromEntries(rows.map((g) => [g.gameId, g.launchUrl || ''])),
-    )
-  }
-
   async function refreshPlayers() {
     const res = await listPlayers()
-    const rows = res.data || []
-    setPlayers(rows)
+    setPlayers(res.data || [])
+  }
+
+  async function refreshBanners() {
+    const res = await listHeroBanners()
+    setBanners(res.data || [])
   }
 
   function startEditWallet(player) {
@@ -650,7 +548,7 @@ function Dashboard({ admin, onLogout }) {
   }
 
   useEffect(() => {
-    Promise.all([refreshGames(), refreshPlayers()]).catch((err) => setError(err.message))
+    Promise.all([refreshPlayers(), refreshBanners()]).catch((err) => setError(err.message))
   }, [])
 
   useEffect(() => {
@@ -667,22 +565,74 @@ function Dashboard({ admin, onLogout }) {
     setMenuOpen(false)
     setError('')
     setEditingWalletId('')
+    setEditingBannerId('')
+    setBannerForm(EMPTY_BANNER_FORM)
     setHistoryPlayer(null)
     setPlayerHistory([])
   }
 
-  async function onAddGame(e) {
+  function startEditBanner(banner) {
+    setEditingBannerId(banner._id)
+    setBannerForm({
+      title: banner.title || '',
+      subtitle: banner.subtitle || '',
+      pill: banner.pill || '',
+      image: banner.image || '',
+      mobileImage: banner.mobileImage || '',
+      ctaLabel: banner.ctaLabel || '',
+      ctaUrl: banner.ctaUrl || '',
+      sortOrder: String(banner.sortOrder ?? 0),
+      status: banner.status === 'inactive' ? 'inactive' : 'active',
+    })
+    setError('')
+  }
+
+  async function onSaveBanner(e) {
     e.preventDefault()
     setBusy(true)
     setError('')
     try {
-      await addGame(gameForm)
-      setGameForm(EMPTY_GAME_FORM)
-      await refreshGames()
+      const payload = {
+        ...bannerForm,
+        sortOrder: Number(bannerForm.sortOrder) || 0,
+      }
+      if (editingBannerId) {
+        await updateHeroBanner(editingBannerId, payload)
+      } else {
+        await addHeroBanner(payload)
+      }
+      setBannerForm(EMPTY_BANNER_FORM)
+      setEditingBannerId('')
+      await refreshBanners()
     } catch (err) {
       setError(err.message)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function onToggleBanner(banner) {
+    setError('')
+    try {
+      await toggleHeroBanner(banner._id)
+      await refreshBanners()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function onDeleteBanner(banner) {
+    if (!window.confirm(`Delete banner “${banner.title}”? This cannot be undone.`)) return
+    setError('')
+    try {
+      await deleteHeroBanner(banner._id)
+      if (editingBannerId === banner._id) {
+        setEditingBannerId('')
+        setBannerForm(EMPTY_BANNER_FORM)
+      }
+      await refreshBanners()
+    } catch (err) {
+      setError(err.message)
     }
   }
 
@@ -703,28 +653,6 @@ function Dashboard({ admin, onLogout }) {
       setError(err.message)
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function onToggle(game) {
-    setError('')
-    try {
-      await toggleGame({ gameId: game.gameId })
-      await refreshGames()
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-
-  async function onDeleteGame(game) {
-    const label = game.title || game.name || game.gameId
-    if (!window.confirm(`Delete game “${label}”? This cannot be undone.`)) return
-    setError('')
-    try {
-      await deleteGame({ gameId: game.gameId })
-      await refreshGames()
-    } catch (err) {
-      setError(err.message)
     }
   }
 
@@ -781,22 +709,6 @@ function Dashboard({ admin, onLogout }) {
     }
   }
 
-  async function onSaveLaunchUrl(game) {
-    setError('')
-    setSavingUrlId(game.gameId)
-    try {
-      await updateGameLaunchUrl({
-        gameId: game.gameId,
-        launchUrl: urlDrafts[game.gameId] ?? '',
-      })
-      await refreshGames()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSavingUrlId('')
-    }
-  }
-
   return (
     <div className={`admin-shell dash ${menuOpen ? 'menu-open' : ''}`}>
       <button
@@ -842,11 +754,11 @@ function Dashboard({ admin, onLogout }) {
           </button>
           <button
             type="button"
-            className={`nav-item ${tab === 'games' ? 'is-active' : ''}`}
-            onClick={() => selectTab('games')}
+            className={`nav-item ${tab === 'banners' ? 'is-active' : ''}`}
+            onClick={() => selectTab('banners')}
           >
-            <IconGames />
-            Games
+            <IconBanners />
+            Banners
           </button>
         </nav>
 
@@ -918,22 +830,12 @@ function Dashboard({ admin, onLogout }) {
                   <div className="admin-metric">
                     <p className="admin-metric-label">Active players</p>
                     <p className="admin-metric-value is-green">{activePlayers}</p>
-                    <p className="admin-metric-hint">Launched at least one game</p>
+                    <p className="admin-metric-hint">Not suspended</p>
                   </div>
                   <div className="admin-metric">
-                    <p className="admin-metric-label">Total games</p>
-                    <p className="admin-metric-value">{games.length}</p>
-                    <p className="admin-metric-hint">In catalog</p>
-                  </div>
-                  <div className="admin-metric">
-                    <p className="admin-metric-label">Active games</p>
-                    <p className="admin-metric-value is-green">{activeGames}</p>
-                    <p className="admin-metric-hint">Live in lobby</p>
-                  </div>
-                  <div className="admin-metric">
-                    <p className="admin-metric-label">Catalog coverage</p>
-                    <p className="admin-metric-value">{catalogCoverage}%</p>
-                    <p className="admin-metric-hint">{inactiveGames} inactive</p>
+                    <p className="admin-metric-label">Hero banners</p>
+                    <p className="admin-metric-value">{banners.length}</p>
+                    <p className="admin-metric-hint">{activeBanners} live in lobby</p>
                   </div>
                 </div>
 
@@ -956,16 +858,16 @@ function Dashboard({ admin, onLogout }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => selectTab('games')}
+                    onClick={() => selectTab('banners')}
                     className="dashboard-quick-card"
                   >
                     <span className="dashboard-quick-icon">
-                      <IconGames />
+                      <IconBanners />
                     </span>
                     <span className="dashboard-quick-text">
-                      <span className="dashboard-quick-title">Manage games</span>
+                      <span className="dashboard-quick-title">Manage banners</span>
                       <span className="dashboard-quick-desc">
-                        {activeGames} active · {games.length} total in catalog
+                        {activeBanners} active · {banners.length} total
                       </span>
                     </span>
                   </button>
@@ -1015,82 +917,27 @@ function Dashboard({ admin, onLogout }) {
                       )}
                     </div>
                   </section>
-
-                  <section className="admin-section dashboard-panel">
-                    <div className="admin-section-head dashboard-panel-head">
-                      <div>
-                        <h2 className="admin-section-title">Game catalog</h2>
-                        <p className="admin-section-subtitle dashboard-panel-subtitle">
-                          {activeGames} live · {inactiveGames} hidden
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => selectTab('games')}
-                        className="dashboard-link-btn"
-                      >
-                        View all
-                      </button>
-                    </div>
-                    <div className="admin-section-body flush dashboard-panel-body">
-                      {!games.length ? (
-                        <div className="admin-empty compact">
-                          <p className="admin-empty-title">No games yet</p>
-                          <p className="admin-empty-text">Add a game to populate the catalog.</p>
-                        </div>
-                      ) : (
-                        <ul className="catalog-compact-list">
-                          {catalogPreview.map((g) => (
-                            <li key={g._id || g.gameId} className="catalog-compact-row">
-                              <span
-                                className={`status-pill compact ${g.isLive ? 'active' : 'inactive'}`}
-                              >
-                                {g.isLive ? 'Live' : 'Off'}
-                              </span>
-                              <span className="catalog-compact-name">{g.title || g.name}</span>
-                              <span className="catalog-compact-id">{g.gameId}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </section>
                 </div>
-
-                <section className="admin-section">
-                  <div className="admin-section-head">
-                    <div>
-                      <h2 className="admin-section-title">Platform snapshot</h2>
-                      <p className="admin-section-subtitle">Key numbers for quick reference</p>
-                    </div>
-                  </div>
-                  <div className="admin-section-body">
-                    <dl className="dashboard-info-grid">
-                      <div className="dashboard-info-row">
-                        <dt>Admin session</dt>
-                        <dd>{admin.username}</dd>
-                      </div>
-                      <div className="dashboard-info-row">
-                        <dt>Players with balance &gt; ₹0</dt>
-                        <dd>
-                          {players.filter((p) => Number(p.balance ?? 0) > 0).length} of {players.length}
-                        </dd>
-                      </div>
-                      <div className="dashboard-info-row">
-                        <dt>Games with launch URL</dt>
-                        <dd>
-                          {games.filter((g) => Boolean(g.launchUrl)).length} of {games.length}
-                        </dd>
-                      </div>
-                      <div className="dashboard-info-row">
-                        <dt>Inactive games</dt>
-                        <dd>{inactiveGames}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </section>
               </>
-            ) : tab === 'players' ? (
+            ) : tab === 'banners' ? (
+              <div className="admin-metrics">
+                <div className="admin-metric">
+                  <p className="admin-metric-label">Total banners</p>
+                  <p className="admin-metric-value">{banners.length}</p>
+                  <p className="admin-metric-hint">In catalog</p>
+                </div>
+                <div className="admin-metric">
+                  <p className="admin-metric-label">Active banners</p>
+                  <p className="admin-metric-value is-green">{activeBanners}</p>
+                  <p className="admin-metric-hint">Visible in lobby</p>
+                </div>
+                <div className="admin-metric">
+                  <p className="admin-metric-label">Inactive banners</p>
+                  <p className="admin-metric-value">{banners.length - activeBanners}</p>
+                  <p className="admin-metric-hint">Hidden from lobby</p>
+                </div>
+              </div>
+            ) : (
               <div className="admin-metrics">
                 <div className="admin-metric">
                   <p className="admin-metric-label">Registered players</p>
@@ -1107,25 +954,7 @@ function Dashboard({ admin, onLogout }) {
                 <div className="admin-metric">
                   <p className="admin-metric-label">Active players</p>
                   <p className="admin-metric-value is-green">{activePlayers}</p>
-                  <p className="admin-metric-hint">Launched at least one game</p>
-                </div>
-              </div>
-            ) : (
-              <div className="admin-metrics">
-                <div className="admin-metric">
-                  <p className="admin-metric-label">Total games</p>
-                  <p className="admin-metric-value">{games.length}</p>
-                  <p className="admin-metric-hint">Entries in catalog</p>
-                </div>
-                <div className="admin-metric">
-                  <p className="admin-metric-label">Active games</p>
-                  <p className="admin-metric-value is-green">{activeGames}</p>
-                  <p className="admin-metric-hint">Visible to players</p>
-                </div>
-                <div className="admin-metric">
-                  <p className="admin-metric-label">Inactive games</p>
-                  <p className="admin-metric-value">{inactiveGames}</p>
-                  <p className="admin-metric-hint">Hidden from lobby</p>
+                  <p className="admin-metric-hint">Not suspended</p>
                 </div>
               </div>
             )}
@@ -1436,59 +1265,63 @@ function Dashboard({ admin, onLogout }) {
                   </div>
                 </section>
               </>
-            ) : tab === 'games' ? (
+            ) : tab === 'banners' ? (
               <>
                 <section className="admin-section">
                   <div className="admin-section-head">
                     <div>
-                      <h2 className="admin-section-title">Add game</h2>
+                      <h2 className="admin-section-title">
+                        {editingBannerId ? 'Edit banner' : 'Add banner'}
+                      </h2>
                       <p className="admin-section-subtitle">
-                        Platform opens the launch URL with userId, gameId, sessionId, token, and returnUrl.
+                        Banners appear in the player lobby hero carousel. Use image URLs (https).
                       </p>
                     </div>
                   </div>
-                  <form onSubmit={onAddGame} className="admin-section-body">
+                  <form onSubmit={onSaveBanner} className="admin-section-body">
                     <div className="admin-form-grid cols-3">
                       <label className="admin-field">
-                        <span className="admin-field-label">Game name</span>
+                        <span className="admin-field-label">Title</span>
                         <input
                           required
-                          placeholder="e.g. Ludo Classic"
+                          placeholder="e.g. Welcome Bonus"
                           className="admin-input"
-                          value={gameForm.name}
-                          onChange={(e) => setGameForm((f) => ({ ...f, name: e.target.value }))}
+                          value={bannerForm.title}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, title: e.target.value }))
+                          }
                         />
                       </label>
                       <label className="admin-field">
-                        <span className="admin-field-label">Game ID</span>
+                        <span className="admin-field-label">Pill / badge</span>
                         <input
-                          required
-                          placeholder="e.g. LUDO"
+                          placeholder="e.g. NEW · LIMITED"
                           className="admin-input"
-                          value={gameForm.gameId}
-                          onChange={(e) => setGameForm((f) => ({ ...f, gameId: e.target.value }))}
+                          value={bannerForm.pill}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, pill: e.target.value }))
+                          }
                         />
                       </label>
                       <label className="admin-field">
-                        <span className="admin-field-label">Provider</span>
+                        <span className="admin-field-label">Sort order</span>
                         <input
-                          required
-                          placeholder="e.g. SPRING_LUDO"
+                          type="number"
                           className="admin-input"
-                          value={gameForm.provider}
-                          onChange={(e) => setGameForm((f) => ({ ...f, provider: e.target.value }))}
+                          value={bannerForm.sortOrder}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, sortOrder: e.target.value }))
+                          }
                         />
                       </label>
                       <label className="admin-field span-2">
-                        <span className="admin-field-label">Launch URL</span>
+                        <span className="admin-field-label">Subtitle</span>
                         <input
-                          required
-                          type="url"
-                          placeholder="https://your-game.onrender.com/"
+                          placeholder="Short supporting line"
                           className="admin-input"
-                          value={gameForm.launchUrl}
+                          value={bannerForm.subtitle}
                           onChange={(e) =>
-                            setGameForm((f) => ({ ...f, launchUrl: e.target.value }))
+                            setBannerForm((f) => ({ ...f, subtitle: e.target.value }))
                           }
                         />
                       </label>
@@ -1496,18 +1329,84 @@ function Dashboard({ admin, onLogout }) {
                         <span className="admin-field-label">Status</span>
                         <select
                           className="admin-input"
-                          value={gameForm.status}
-                          onChange={(e) => setGameForm((f) => ({ ...f, status: e.target.value }))}
+                          value={bannerForm.status}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, status: e.target.value }))
+                          }
                         >
                           <option value="active">Active</option>
                           <option value="inactive">Inactive</option>
                         </select>
                       </label>
+                      <label className="admin-field span-2">
+                        <span className="admin-field-label">Desktop image URL</span>
+                        <input
+                          required
+                          type="url"
+                          placeholder="https://…"
+                          className="admin-input"
+                          value={bannerForm.image}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, image: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span className="admin-field-label">Mobile image URL</span>
+                        <input
+                          type="url"
+                          placeholder="Optional"
+                          className="admin-input"
+                          value={bannerForm.mobileImage}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, mobileImage: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span className="admin-field-label">CTA label</span>
+                        <input
+                          placeholder="e.g. Explore Now"
+                          className="admin-input"
+                          value={bannerForm.ctaLabel}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, ctaLabel: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <label className="admin-field span-2">
+                        <span className="admin-field-label">CTA URL</span>
+                        <input
+                          type="url"
+                          placeholder="https://…"
+                          className="admin-input"
+                          value={bannerForm.ctaUrl}
+                          onChange={(e) =>
+                            setBannerForm((f) => ({ ...f, ctaUrl: e.target.value }))
+                          }
+                        />
+                      </label>
                     </div>
-                    <div className="admin-form-actions mt-4">
+                    <div className="admin-form-actions mt-4 flex flex-wrap gap-2">
                       <button type="submit" disabled={busy} className="btn-game btn-play px-5 py-2.5 text-sm">
-                        {busy ? 'Adding…' : 'Add game'}
+                        {busy
+                          ? 'Saving…'
+                          : editingBannerId
+                            ? 'Update banner'
+                            : 'Add banner'}
                       </button>
+                      {editingBannerId ? (
+                        <button
+                          type="button"
+                          className="btn-game btn-ghost px-5 py-2.5 text-sm"
+                          onClick={() => {
+                            setEditingBannerId('')
+                            setBannerForm(EMPTY_BANNER_FORM)
+                          }}
+                        >
+                          Cancel edit
+                        </button>
+                      ) : null}
                     </div>
                   </form>
                 </section>
@@ -1515,108 +1414,80 @@ function Dashboard({ admin, onLogout }) {
                 <section className="admin-section">
                   <div className="admin-section-head">
                     <div>
-                      <h2 className="admin-section-title">Game catalog</h2>
+                      <h2 className="admin-section-title">Banner catalog</h2>
                       <p className="admin-section-subtitle">
-                        Update launch URLs, toggle availability, or remove titles from the lobby.
+                        Toggle visibility, edit copy, or remove banners from the lobby.
                       </p>
                     </div>
-                    <span className="admin-count-badge">
-                      {filteredGames.length} of {games.length}
-                    </span>
+                    <span className="admin-count-badge">{banners.length}</span>
                   </div>
                   <div className="admin-section-body flush">
-                    <div className="border-b border-[var(--border)] px-4 py-3 sm:px-5">
-                      <div className="admin-toolbar">
-                        <div className="admin-search-wrap">
-                          <IconSearch />
-                          <input
-                            type="search"
-                            className="admin-search"
-                            placeholder="Search games…"
-                            value={gameSearch}
-                            onChange={(e) => setGameSearch(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {!filteredGames.length ? (
+                    {!banners.length ? (
                       <div className="admin-empty">
                         <div className="admin-empty-icon">
-                          <IconGames />
+                          <IconBanners />
                         </div>
-                        <p className="admin-empty-title">
-                          {games.length ? 'No matching games' : 'No games yet'}
-                        </p>
+                        <p className="admin-empty-title">No banners yet</p>
                         <p className="admin-empty-text">
-                          {games.length
-                            ? 'Try a different search term or clear the filter.'
-                            : 'Add your first game using the form above.'}
+                          Add your first hero banner using the form above.
                         </p>
                       </div>
                     ) : (
-                      <div className="game-grid">
-                        {filteredGames.map((g) => {
-                          const isActive = g.status === 'active' || g.isActive
-                          const draft = urlDrafts[g.gameId] ?? ''
-                          const dirty = draft !== (g.launchUrl || '')
+                      <div className="game-grid" style={{ padding: '1rem', display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+                        {banners.map((b) => {
+                          const isActive = b.status === 'active' || b.isActive
                           return (
-                            <article key={g._id || g.gameId} className="game-card">
-                              <div className="game-card-head">
-                                <div className="min-w-0">
-                                  <h3 className="game-card-title">{g.title || g.name}</h3>
-                                </div>
-                                <span className={`status-pill ${isActive ? 'active' : 'inactive'}`}>
-                                  {isActive ? 'Active' : 'Inactive'}
-                                </span>
+                            <article key={b._id} className="game-card" style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: 'var(--panel)' }}>
+                              <div style={{ height: 120, overflow: 'hidden', background: '#111' }}>
+                                {b.image ? (
+                                  <img
+                                    src={b.image}
+                                    alt={b.title}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                ) : null}
                               </div>
-                              <dl className="game-card-meta">
-                                <div className="game-meta-row">
-                                  <dt>Game ID</dt>
-                                  <dd className="mono">{g.gameId}</dd>
+                              <div style={{ padding: '0.9rem 1rem', display: 'grid', gap: '0.55rem' }}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <h3 className="font-display text-sm font-bold text-white truncate">
+                                      {b.title}
+                                    </h3>
+                                    <p className="text-xs text-[var(--muted)] truncate">
+                                      {b.subtitle || 'No subtitle'}
+                                    </p>
+                                  </div>
+                                  <span className={`status-pill ${isActive ? 'active' : 'inactive'}`}>
+                                    {isActive ? 'Active' : 'Inactive'}
+                                  </span>
                                 </div>
-                                <div className="game-meta-row">
-                                  <dt>Provider</dt>
-                                  <dd>{g.provider || '—'}</dd>
+                                <p className="text-[0.65rem] text-[var(--muted)]">
+                                  Order {b.sortOrder ?? 0}
+                                  {b.ctaLabel ? ` · CTA: ${b.ctaLabel}` : ''}
+                                </p>
+                                <div className="player-actions flex-wrap gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditBanner(b)}
+                                    className="btn-game btn-ghost btn-compact"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleBanner(b)}
+                                    className="btn-game btn-play btn-compact"
+                                  >
+                                    {isActive ? 'Disable' : 'Enable'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteBanner(b)}
+                                    className="btn-game btn-danger btn-compact"
+                                  >
+                                    Delete
+                                  </button>
                                 </div>
-                              </dl>
-                              <div className="game-url-block">
-                                <span className="game-url-label">Launch URL</span>
-                                <input
-                                  className="admin-input text-xs"
-                                  value={draft}
-                                  placeholder="https://…"
-                                  onChange={(e) =>
-                                    setUrlDrafts((prev) => ({
-                                      ...prev,
-                                      [g.gameId]: e.target.value,
-                                    }))
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  disabled={savingUrlId === g.gameId || !dirty}
-                                  onClick={() => onSaveLaunchUrl(g)}
-                                  className="btn-game btn-play btn-compact w-fit"
-                                >
-                                  {savingUrlId === g.gameId ? 'Saving…' : 'Save URL'}
-                                </button>
-                              </div>
-                              <div className="game-card-actions">
-                                <button
-                                  type="button"
-                                  onClick={() => onToggle(g)}
-                                  className="btn-game btn-ghost btn-compact"
-                                >
-                                  {isActive ? 'Disable' : 'Enable'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onDeleteGame(g)}
-                                  className="btn-game btn-danger btn-compact"
-                                >
-                                  Delete
-                                </button>
                               </div>
                             </article>
                           )

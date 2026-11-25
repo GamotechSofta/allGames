@@ -1,7 +1,6 @@
 import mongoose from 'mongoose'
 import { nanoid } from 'nanoid'
 import { GapWalletTransaction } from '../models/gapWalletTransaction.model.js'
-import { Game } from '../models/game.model.js'
 import { findPlayerById, getWallet, adjustWallet } from '../store.js'
 import { gapRequest } from '../services/gap.service.js'
 import { auditLog } from '../utils/logger.js'
@@ -546,17 +545,6 @@ async function applyWalletMutation({
   return { duplicate: false, balance: finalBalance, transactionId: txId }
 }
 
-async function resolveGameId(gameName) {
-  const trimmed = String(gameName || '').trim()
-  if (!trimmed) return ''
-
-  const game = await Game.findOne({
-    $or: [{ gameId: trimmed }, { name: trimmed }, { title: trimmed }],
-  }).lean()
-
-  return game?.gameId || trimmed
-}
-
 /**
  * POST /api/wallet/credit/user — player JWT
  * Body: { userId, gameName, amount, description }
@@ -566,7 +554,7 @@ export async function genericUserWalletCredit(req, res) {
   try {
     const body = req.body || {}
     const requestedUserId = String(body.userId || body.userID || req.playerId || '').trim()
-    const gameName = String(body.gameName || body.game || '').trim()
+    const gameName = String(body.gameName || body.game || body.gameId || '').trim()
     const description = String(body.description || body.remarks || '').trim()
 
     if (!requestedUserId) {
@@ -584,7 +572,7 @@ export async function genericUserWalletCredit(req, res) {
     const amount = parsePositiveAmount(body.amount, res)
     if (amount === null) return
 
-    const gameId = await resolveGameId(gameName)
+    const gameId = gameName
     const transactionId =
       String(body.transactionId || '').trim() || `GEN_CR_${nanoid(16)}`
 
