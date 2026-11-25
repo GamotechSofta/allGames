@@ -24,11 +24,37 @@ function prefersReducedMotion() {
   )
 }
 
-export default function HeroSection({ banners = [], loading = false }) {
-  const slides = useMemo(
-    () => (Array.isArray(banners) ? banners.filter(Boolean) : []),
-    [banners],
+const MOBILE_QUERY = '(max-width: 768px)'
+
+function useIsMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(MOBILE_QUERY).matches : false,
   )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const mql = window.matchMedia(MOBILE_QUERY)
+    const onChange = (e) => setIsMobile(e.matches)
+    setIsMobile(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  return isMobile
+}
+
+export default function HeroSection({ banners = [], loading = false }) {
+  const isMobile = useIsMobileViewport()
+  const currentDevice = isMobile ? 'mobile' : 'desktop'
+
+  const slides = useMemo(() => {
+    if (!Array.isArray(banners)) return []
+    return banners.filter((banner) => {
+      if (!banner) return false
+      const deviceType = banner.deviceType === 'mobile' ? 'mobile' : 'desktop'
+      return deviceType === currentDevice
+    })
+  }, [banners, currentDevice])
   const slideCount = slides.length
   const canLoop = slideCount >= 3
 
@@ -237,7 +263,7 @@ export default function HeroSection({ banners = [], loading = false }) {
       track.style.removeProperty('--current')
       track.scrollLeft = 0
     }
-  }, [slideCount, canLoop, syncParking])
+  }, [slideCount, canLoop, currentDevice, syncParking])
 
   // Track live scroll + settled scrollend (with debounced fallback)
   useEffect(() => {
@@ -343,20 +369,7 @@ export default function HeroSection({ banners = [], loading = false }) {
   }
 
   if (!slideCount) {
-    return (
-      <section className="hero-section" aria-label="Promotions">
-        <div className="hero-slide hero-slide-empty">
-          <div className="hero-empty-copy">
-            <p className="hero-pill">123GAMES</p>
-            <h2 className="hero-title">Welcome to the lobby</h2>
-            <p className="hero-subtitle">
-              Your wallet, history, and account tools live here. Hero banners will appear once
-              they are published from Admin.
-            </p>
-          </div>
-        </div>
-      </section>
-    )
+    return null
   }
 
   return (
@@ -397,23 +410,20 @@ export default function HeroSection({ banners = [], loading = false }) {
         aria-label="Banner slides"
       >
         {slides.map((slide, i) => {
-          const desktopImage = slide.image || slide.mobileImage || ''
-          const mobileImage = slide.mobileImage || slide.image || ''
+          const imageUrl =
+            currentDevice === 'mobile'
+              ? slide.mobileImage || slide.image || ''
+              : slide.image || slide.mobileImage || ''
           const altText = slide.title || `Promotional banner ${i + 1}`
 
-          const mediaContent = desktopImage ? (
-            <picture className="hero-picture">
-              {mobileImage && mobileImage !== desktopImage ? (
-                <source media="(max-width: 768px)" srcSet={mobileImage} />
-              ) : null}
-              <img
-                src={desktopImage}
-                alt={altText}
-                className="hero-image"
-                fetchPriority={i === 0 ? 'high' : 'low'}
-                loading={i === 0 ? undefined : 'lazy'}
-              />
-            </picture>
+          const mediaContent = imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={altText}
+              className="hero-image"
+              fetchPriority={i === 0 ? 'high' : 'low'}
+              loading={i === 0 ? undefined : 'lazy'}
+            />
           ) : (
             <div className="hero-image hero-image-fallback" role="img" aria-label={altText} />
           )

@@ -5,6 +5,12 @@ const heroBannerSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     subtitle: { type: String, default: '', trim: true },
     pill: { type: String, default: '', trim: true },
+    deviceType: {
+      type: String,
+      enum: ['desktop', 'mobile'],
+      default: 'desktop',
+      index: true,
+    },
     image: { type: String, required: true, trim: true },
     mobileImage: { type: String, default: '', trim: true },
     ctaLabel: { type: String, default: '', trim: true },
@@ -21,7 +27,7 @@ const heroBannerSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-heroBannerSchema.index({ status: 1, sortOrder: 1, createdAt: -1 })
+heroBannerSchema.index({ status: 1, deviceType: 1, sortOrder: 1, createdAt: -1 })
 
 heroBannerSchema.pre('save', function () {
   if (this.isModified('status') || this.isNew) {

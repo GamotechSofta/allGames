@@ -12,11 +12,22 @@ function normalizeUrl(value) {
   }
 }
 
+function normalizeDeviceType(value) {
+  return String(value || '').trim().toLowerCase() === 'mobile' ? 'mobile' : 'desktop'
+}
+
 function toBannerPayload(body = {}) {
   const title = String(body.title || '').trim()
-  const image = normalizeUrl(body.image) || String(body.image || '').trim()
+  const deviceType = normalizeDeviceType(body.deviceType)
+  const rawImage =
+    normalizeUrl(body.image) ||
+    String(body.image || '').trim() ||
+    normalizeUrl(body.mobileImage) ||
+    String(body.mobileImage || '').trim()
   const mobileImage =
-    normalizeUrl(body.mobileImage) || String(body.mobileImage || '').trim()
+    deviceType === 'mobile'
+      ? rawImage
+      : normalizeUrl(body.mobileImage) || String(body.mobileImage || '').trim()
   const ctaUrl = normalizeUrl(body.ctaUrl) || String(body.ctaUrl || '').trim()
   const status = body.status === 'inactive' ? 'inactive' : 'active'
   const sortOrder = Number.isFinite(Number(body.sortOrder))
@@ -27,7 +38,8 @@ function toBannerPayload(body = {}) {
     title,
     subtitle: String(body.subtitle || '').trim(),
     pill: String(body.pill || '').trim(),
-    image,
+    deviceType,
+    image: rawImage,
     mobileImage,
     ctaLabel: String(body.ctaLabel || '').trim(),
     ctaUrl,
@@ -38,11 +50,22 @@ function toBannerPayload(body = {}) {
 }
 
 /** GET /api/hero-banners — public active banners for the lobby */
-export async function listActiveHeroBanners(_req, res) {
+export async function listActiveHeroBanners(req, res) {
   try {
-    const banners = await HeroBanner.find({
+    const requestedDevice = String(
+      req.query?.device || req.query?.deviceType || '',
+    )
+      .trim()
+      .toLowerCase()
+
+    const filter = {
       $or: [{ status: 'active' }, { isActive: true }],
-    })
+    }
+    if (requestedDevice === 'desktop' || requestedDevice === 'mobile') {
+      filter.deviceType = requestedDevice
+    }
+
+    const banners = await HeroBanner.find(filter)
       .sort({ sortOrder: 1, createdAt: -1 })
       .lean()
 

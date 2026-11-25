@@ -50,6 +50,7 @@ function IconBanners() {
 }
 
 const EMPTY_BANNER_FORM = {
+  deviceType: 'desktop',
   title: '',
   subtitle: '',
   pill: '',
@@ -432,6 +433,7 @@ function Dashboard({ admin, onLogout }) {
   const [refreshing, setRefreshing] = useState('')
   const [bannerForm, setBannerForm] = useState(EMPTY_BANNER_FORM)
   const [editingBannerId, setEditingBannerId] = useState('')
+  const [bannerFilter, setBannerFilter] = useState('all')
   const [playerForm, setPlayerForm] = useState({
     username: '',
     phone: '',
@@ -459,6 +461,18 @@ function Dashboard({ admin, onLogout }) {
     () => banners.filter((b) => b.status === 'active' || b.isActive).length,
     [banners],
   )
+  const desktopBannersCount = useMemo(
+    () => banners.filter((b) => (b.deviceType || 'desktop') === 'desktop').length,
+    [banners],
+  )
+  const mobileBannersCount = useMemo(
+    () => banners.filter((b) => b.deviceType === 'mobile').length,
+    [banners],
+  )
+  const filteredBanners = useMemo(() => {
+    if (bannerFilter === 'all') return banners
+    return banners.filter((b) => (b.deviceType || 'desktop') === bannerFilter)
+  }, [banners, bannerFilter])
 
   const pageMeta = {
     dashboard: {
@@ -572,13 +586,15 @@ function Dashboard({ admin, onLogout }) {
   }
 
   function startEditBanner(banner) {
+    const deviceType = banner.deviceType === 'mobile' ? 'mobile' : 'desktop'
     setEditingBannerId(banner._id)
     setBannerForm({
+      deviceType,
       title: banner.title || '',
       subtitle: banner.subtitle || '',
       pill: banner.pill || '',
-      image: banner.image || '',
-      mobileImage: banner.mobileImage || '',
+      image: banner.image || banner.mobileImage || '',
+      mobileImage: deviceType === 'mobile' ? banner.image || banner.mobileImage || '' : '',
       ctaLabel: banner.ctaLabel || '',
       ctaUrl: banner.ctaUrl || '',
       sortOrder: String(banner.sortOrder ?? 0),
@@ -592,8 +608,11 @@ function Dashboard({ admin, onLogout }) {
     setBusy(true)
     setError('')
     try {
+      const deviceType = bannerForm.deviceType === 'mobile' ? 'mobile' : 'desktop'
       const payload = {
         ...bannerForm,
+        deviceType,
+        mobileImage: deviceType === 'mobile' ? bannerForm.image : '',
         sortOrder: Number(bannerForm.sortOrder) || 0,
       }
       if (editingBannerId) {
@@ -601,7 +620,7 @@ function Dashboard({ admin, onLogout }) {
       } else {
         await addHeroBanner(payload)
       }
-      setBannerForm(EMPTY_BANNER_FORM)
+      setBannerForm({ ...EMPTY_BANNER_FORM, deviceType })
       setEditingBannerId('')
       await refreshBanners()
     } catch (err) {
@@ -924,17 +943,17 @@ function Dashboard({ admin, onLogout }) {
                 <div className="admin-metric">
                   <p className="admin-metric-label">Total banners</p>
                   <p className="admin-metric-value">{banners.length}</p>
-                  <p className="admin-metric-hint">In catalog</p>
+                  <p className="admin-metric-hint">{activeBanners} active in lobby</p>
                 </div>
                 <div className="admin-metric">
-                  <p className="admin-metric-label">Active banners</p>
-                  <p className="admin-metric-value is-green">{activeBanners}</p>
-                  <p className="admin-metric-hint">Visible in lobby</p>
+                  <p className="admin-metric-label">Desktop banners</p>
+                  <p className="admin-metric-value is-gold">{desktopBannersCount}</p>
+                  <p className="admin-metric-hint">Shown on desktop (&gt;768px)</p>
                 </div>
                 <div className="admin-metric">
-                  <p className="admin-metric-label">Inactive banners</p>
-                  <p className="admin-metric-value">{banners.length - activeBanners}</p>
-                  <p className="admin-metric-hint">Hidden from lobby</p>
+                  <p className="admin-metric-label">Mobile banners</p>
+                  <p className="admin-metric-value is-green">{mobileBannersCount}</p>
+                  <p className="admin-metric-hint">Shown on mobile (≤768px)</p>
                 </div>
               </div>
             ) : (
@@ -1279,6 +1298,44 @@ function Dashboard({ admin, onLogout }) {
                     </div>
                   </div>
                   <form onSubmit={onSaveBanner} className="admin-section-body">
+                    <div className="mb-4">
+                      <span className="admin-field-label block mb-2">
+                        1. Select banner type (Desktop or Mobile)
+                      </span>
+                      <div
+                        role="radiogroup"
+                        aria-label="Banner device type"
+                        className="flex flex-wrap gap-2"
+                      >
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={bannerForm.deviceType === 'desktop'}
+                          onClick={() =>
+                            setBannerForm((f) => ({ ...f, deviceType: 'desktop' }))
+                          }
+                          className={`btn-game px-4 py-2 text-sm ${
+                            bannerForm.deviceType === 'desktop' ? 'btn-play' : 'btn-ghost'
+                          }`}
+                        >
+                          Desktop Banner
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={bannerForm.deviceType === 'mobile'}
+                          onClick={() =>
+                            setBannerForm((f) => ({ ...f, deviceType: 'mobile' }))
+                          }
+                          className={`btn-game px-4 py-2 text-sm ${
+                            bannerForm.deviceType === 'mobile' ? 'btn-play' : 'btn-ghost'
+                          }`}
+                        >
+                          Mobile Banner
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="admin-form-grid cols-3">
                       <label className="admin-field">
                         <span className="admin-field-label">Title</span>
@@ -1293,17 +1350,6 @@ function Dashboard({ admin, onLogout }) {
                         />
                       </label>
                       <label className="admin-field">
-                        <span className="admin-field-label">Pill / badge</span>
-                        <input
-                          placeholder="e.g. NEW · LIMITED"
-                          className="admin-input"
-                          value={bannerForm.pill}
-                          onChange={(e) =>
-                            setBannerForm((f) => ({ ...f, pill: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="admin-field">
                         <span className="admin-field-label">Sort order</span>
                         <input
                           type="number"
@@ -1311,17 +1357,6 @@ function Dashboard({ admin, onLogout }) {
                           value={bannerForm.sortOrder}
                           onChange={(e) =>
                             setBannerForm((f) => ({ ...f, sortOrder: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="admin-field span-2">
-                        <span className="admin-field-label">Subtitle</span>
-                        <input
-                          placeholder="Short supporting line"
-                          className="admin-input"
-                          value={bannerForm.subtitle}
-                          onChange={(e) =>
-                            setBannerForm((f) => ({ ...f, subtitle: e.target.value }))
                           }
                         />
                       </label>
@@ -1339,7 +1374,11 @@ function Dashboard({ admin, onLogout }) {
                         </select>
                       </label>
                       <label className="admin-field span-2">
-                        <span className="admin-field-label">Desktop image URL</span>
+                        <span className="admin-field-label">
+                          {bannerForm.deviceType === 'mobile'
+                            ? 'Mobile image URL'
+                            : 'Desktop image URL'}
+                        </span>
                         <input
                           required
                           type="url"
@@ -1352,30 +1391,7 @@ function Dashboard({ admin, onLogout }) {
                         />
                       </label>
                       <label className="admin-field">
-                        <span className="admin-field-label">Mobile image URL</span>
-                        <input
-                          type="url"
-                          placeholder="Optional"
-                          className="admin-input"
-                          value={bannerForm.mobileImage}
-                          onChange={(e) =>
-                            setBannerForm((f) => ({ ...f, mobileImage: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="admin-field">
-                        <span className="admin-field-label">CTA label</span>
-                        <input
-                          placeholder="e.g. Explore Now"
-                          className="admin-input"
-                          value={bannerForm.ctaLabel}
-                          onChange={(e) =>
-                            setBannerForm((f) => ({ ...f, ctaLabel: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="admin-field span-2">
-                        <span className="admin-field-label">CTA URL</span>
+                        <span className="admin-field-label">Click / CTA URL (optional)</span>
                         <input
                           type="url"
                           placeholder="https://…"
@@ -1392,8 +1408,8 @@ function Dashboard({ admin, onLogout }) {
                         {busy
                           ? 'Saving…'
                           : editingBannerId
-                            ? 'Update banner'
-                            : 'Add banner'}
+                            ? `Update ${bannerForm.deviceType} banner`
+                            : `Add ${bannerForm.deviceType} banner`}
                       </button>
                       {editingBannerId ? (
                         <button
@@ -1416,34 +1432,62 @@ function Dashboard({ admin, onLogout }) {
                     <div>
                       <h2 className="admin-section-title">Banner catalog</h2>
                       <p className="admin-section-subtitle">
-                        Toggle visibility, edit copy, or remove banners from the lobby.
+                        Filter by Desktop or Mobile, toggle visibility, edit, or delete banners.
                       </p>
                     </div>
-                    <span className="admin-count-badge">{banners.length}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBannerFilter('all')}
+                        className={`btn-game btn-compact ${bannerFilter === 'all' ? 'btn-play' : 'btn-ghost'}`}
+                      >
+                        All ({banners.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBannerFilter('desktop')}
+                        className={`btn-game btn-compact ${bannerFilter === 'desktop' ? 'btn-play' : 'btn-ghost'}`}
+                      >
+                        Desktop ({desktopBannersCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBannerFilter('mobile')}
+                        className={`btn-game btn-compact ${bannerFilter === 'mobile' ? 'btn-play' : 'btn-ghost'}`}
+                      >
+                        Mobile ({mobileBannersCount})
+                      </button>
+                    </div>
                   </div>
                   <div className="admin-section-body flush">
-                    {!banners.length ? (
+                    {!filteredBanners.length ? (
                       <div className="admin-empty">
                         <div className="admin-empty-icon">
                           <IconBanners />
                         </div>
-                        <p className="admin-empty-title">No banners yet</p>
+                        <p className="admin-empty-title">
+                          {bannerFilter === 'all'
+                            ? 'No banners yet'
+                            : `No ${bannerFilter} banners yet`}
+                        </p>
                         <p className="admin-empty-text">
-                          Add your first hero banner using the form above.
+                          Select {bannerFilter === 'mobile' ? 'Mobile' : 'Desktop'} Banner above to add one.
                         </p>
                       </div>
                     ) : (
                       <div className="game-grid" style={{ padding: '1rem', display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-                        {banners.map((b) => {
+                        {filteredBanners.map((b) => {
                           const isActive = b.status === 'active' || b.isActive
+                          const deviceType = b.deviceType === 'mobile' ? 'mobile' : 'desktop'
+                          const previewUrl = b.image || b.mobileImage
                           return (
                             <article key={b._id} className="game-card" style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: 'var(--panel)' }}>
-                              <div style={{ height: 120, overflow: 'hidden', background: '#111' }}>
-                                {b.image ? (
+                              <div style={{ background: '#111' }}>
+                                {previewUrl ? (
                                   <img
-                                    src={b.image}
+                                    src={previewUrl}
                                     alt={b.title}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }}
                                   />
                                 ) : null}
                               </div>
@@ -1453,8 +1497,8 @@ function Dashboard({ admin, onLogout }) {
                                     <h3 className="font-display text-sm font-bold text-white truncate">
                                       {b.title}
                                     </h3>
-                                    <p className="text-xs text-[var(--muted)] truncate">
-                                      {b.subtitle || 'No subtitle'}
+                                    <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-amber-300 mt-0.5">
+                                      {deviceType === 'mobile' ? 'Mobile Banner' : 'Desktop Banner'}
                                     </p>
                                   </div>
                                   <span className={`status-pill ${isActive ? 'active' : 'inactive'}`}>
@@ -1463,7 +1507,6 @@ function Dashboard({ admin, onLogout }) {
                                 </div>
                                 <p className="text-[0.65rem] text-[var(--muted)]">
                                   Order {b.sortOrder ?? 0}
-                                  {b.ctaLabel ? ` · CTA: ${b.ctaLabel}` : ''}
                                 </p>
                                 <div className="player-actions flex-wrap gap-1.5">
                                   <button
