@@ -450,7 +450,7 @@ export default function Home() {
         </header>
 
         <div className="dash-body dash-body-single">
-          <section className="min-w-0 space-y-4">
+          <section className="min-w-0 space-y-2.5">
             {error ? (
               <p className="rounded-xl border border-[var(--danger)]/35 bg-[var(--danger)]/10 px-4 py-3 text-sm font-semibold text-[#fecdd3]">
                 {error}
@@ -458,7 +458,7 @@ export default function Home() {
             ) : null}
 
             {showLobby ? (
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 <HeroSection
                   banners={banners}
                   loading={bannersLoading}
@@ -468,6 +468,12 @@ export default function Home() {
                   loading={gamesLoading}
                   error={gamesError}
                   onRetry={loadEnabledGames}
+                  onPlay={(game) => {
+                    const key = game.slug || game.code || game.id || 'game'
+                    navigate(`/play/${encodeURIComponent(key)}`, {
+                      state: { game },
+                    })
+                  }}
                 />
               </div>
             ) : null}

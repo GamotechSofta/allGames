@@ -1,6 +1,6 @@
 import './GamesGrid.css'
 
-export default function GamesGrid({ games = [], loading = false, error = '', onRetry }) {
+export default function GamesGrid({ games = [], loading = false, error = '', onRetry, onPlay }) {
   const items = Array.isArray(games) ? games.filter(Boolean) : []
 
   return (
@@ -66,16 +66,28 @@ export default function GamesGrid({ games = [], loading = false, error = '', onR
                 className={`games-card ${!targetUrl ? 'is-disabled' : ''}`}
               >
                 {targetUrl ? (
-                  <a
-                    href={targetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="games-card-link"
-                    aria-label={`Play ${game.name}`}
-                    title={game.name}
-                  >
-                    {thumb}
-                  </a>
+                  typeof onPlay === 'function' ? (
+                    <button
+                      type="button"
+                      className="games-card-link"
+                      aria-label={`Play ${game.name}`}
+                      title={game.name}
+                      onClick={() => onPlay(game)}
+                    >
+                      {thumb}
+                    </button>
+                  ) : (
+                    <a
+                      href={targetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="games-card-link"
+                      aria-label={`Play ${game.name}`}
+                      title={game.name}
+                    >
+                      {thumb}
+                    </a>
+                  )
                 ) : (
                   <div className="games-card-link" aria-disabled="true" title={game.name}>
                     {thumb}
