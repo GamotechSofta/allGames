@@ -18,6 +18,7 @@ import adminRoutes from './routes/admin.routes.js'
 import walletRoutes from './routes/wallet.routes.js'
 import heroBannerRoutes from './routes/heroBanner.routes.js'
 import gamesRoutes from './routes/games.routes.js'
+import seamlessRoutes from './routes/seamless.routes.js'
 import { userCreditWallet, userDebitWallet } from './controllers/wallet.controller.js'
 
 const app = express()
@@ -244,6 +245,8 @@ app.use('/api/hero-banners', heroBannerRoutes)
 app.use('/api/v1/hero-banners', heroBannerRoutes)
 app.use('/api/games', gamesRoutes)
 app.use('/api/v1/games', gamesRoutes)
+app.use('/api/seamless', seamlessRoutes)
+app.use('/api/v1/seamless', seamlessRoutes)
 
 async function start() {
   await connectDb(process.env.MONGODB_URI)

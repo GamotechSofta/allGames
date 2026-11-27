@@ -40,6 +40,8 @@ export default function GamesGrid({ games = [], loading = false, error = '', onR
           {items.map((game) => {
             const isMaintenance = Boolean(game.maintenanceMode)
             const targetUrl = !isMaintenance ? game.launchUrl || game.demoUrl : ''
+            const canLaunch =
+              !isMaintenance && Boolean(game.id || game.code || targetUrl)
             const thumb = (
               <div className="games-thumb-wrap">
                 {game.thumbnail ? (
@@ -65,29 +67,27 @@ export default function GamesGrid({ games = [], loading = false, error = '', onR
                 key={game.id || game.slug || game.code}
                 className={`games-card ${isMaintenance ? 'is-disabled' : ''}`}
               >
-                {targetUrl ? (
-                  typeof onPlay === 'function' ? (
-                    <button
-                      type="button"
-                      className="games-card-link"
-                      aria-label={`Play ${game.name}`}
-                      title={game.name}
-                      onClick={() => onPlay(game)}
-                    >
-                      {thumb}
-                    </button>
-                  ) : (
-                    <a
-                      href={targetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="games-card-link"
-                      aria-label={`Play ${game.name}`}
-                      title={game.name}
-                    >
-                      {thumb}
-                    </a>
-                  )
+                {canLaunch && typeof onPlay === 'function' ? (
+                  <button
+                    type="button"
+                    className="games-card-link"
+                    aria-label={`Play ${game.name}`}
+                    title={game.name}
+                    onClick={() => onPlay(game)}
+                  >
+                    {thumb}
+                  </button>
+                ) : targetUrl ? (
+                  <a
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="games-card-link"
+                    aria-label={`Play ${game.name}`}
+                    title={game.name}
+                  >
+                    {thumb}
+                  </a>
                 ) : (
                   <div className="games-card-link" aria-disabled="true" title={game.name}>
                     {thumb}

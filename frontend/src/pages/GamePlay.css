@@ -133,6 +133,38 @@
   pointer-events: none;
 }
 
+.game-stage-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.9rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: #0b1418;
+  color: #fecdd3;
+  font-size: 0.9rem;
+}
+
+.game-stage-error p {
+  margin: 0;
+  max-inline-size: 28rem;
+}
+
+.game-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.game-stage-actions .btn-game {
+  padding-inline: 1rem;
+  padding-block: 0.5rem;
+  font-size: 0.82rem;
+}
+
 .game-play-loader {
   position: relative;
   flex: 1;

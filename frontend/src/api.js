@@ -65,3 +65,14 @@ export const fetchHeroBanners = () =>
 export const fetchGames = () =>
   request(`${API_ROOT}/api/games`)
 
+/** Generate a game session token via backend operations API (opType: 1050) */
+export const createGameToken = (payload = {}) =>
+  request(`${API_ROOT}/api/games/token`, { method: 'POST', body: payload })
+
+/** Generate fresh session token and build launch URL for a game */
+export const launchGame = (gid, extras = {}) =>
+  request(`${API_ROOT}/api/games/launch`, {
+    method: 'POST',
+    body: { gid, ...extras },
+  })
+

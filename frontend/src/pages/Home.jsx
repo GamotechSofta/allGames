@@ -469,8 +469,8 @@ export default function Home() {
                   error={gamesError}
                   onRetry={loadGames}
                   onPlay={(game) => {
-                    const key = game.slug || game.code || game.id || 'game'
-                    navigate(`/play/${encodeURIComponent(key)}`, {
+                    const gid = game.id || game.code || game.slug || 'game'
+                    navigate(`/play/${encodeURIComponent(gid)}`, {
                       state: { game },
                     })
                   }}

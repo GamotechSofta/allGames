@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
+import { launchGame } from '../api'
 import './GamePlay.css'
 
 const PLAY_STORAGE_KEY = 'allgames_active_game'
@@ -51,7 +52,7 @@ function saveStoredGame(game) {
 function matchesSlug(game, slug) {
   if (!game || !slug) return false
   const target = String(slug).toLowerCase()
-  return [game.slug, game.code, game.id].some(
+  return [game.id, game.code, game.slug].some(
     (v) => v && String(v).toLowerCase() === target,
   )
 }
@@ -72,8 +73,11 @@ export default function GamePlay() {
     if (stored && (!slug || matchesSlug(stored, slug))) {
       return stored
     }
-    return null
+    return slug ? { id: slug, code: slug, name: slug } : null
   })
+  const [launchUrl, setLaunchUrl] = useState('')
+  const [launching, setLaunching] = useState(false)
+  const [launchError, setLaunchError] = useState('')
   const [frameLoaded, setFrameLoaded] = useState(false)
 
   useEffect(() => {
@@ -81,9 +85,44 @@ export default function GamePlay() {
     if (fromState) {
       saveStoredGame(fromState)
       setGame(fromState)
-      setFrameLoaded(false)
+      return
     }
-  }, [location.state])
+    const stored = readStoredGame()
+    if (stored && (!slug || matchesSlug(stored, slug))) {
+      setGame(stored)
+    } else if (slug) {
+      setGame({ id: slug, code: slug, name: slug })
+    } else {
+      setGame(null)
+    }
+  }, [slug, location.state])
+
+  const gid = String(game?.id || game?.code || slug || '').trim()
+
+  const startSession = useCallback(async () => {
+    if (!gid) return
+    setLaunching(true)
+    setLaunchError('')
+    setLaunchUrl('')
+    setFrameLoaded(false)
+    try {
+      const res = await launchGame(gid, {
+        closeUrl: typeof window !== 'undefined' ? window.location.origin : '',
+      })
+      const url = res.data?.launchUrl || ''
+      if (!url) throw new Error('Launch URL was not returned by server')
+      setLaunchUrl(url)
+    } catch (err) {
+      setLaunchError(err.message || 'Failed to launch game')
+    } finally {
+      setLaunching(false)
+    }
+  }, [gid])
+
+  useEffect(() => {
+    if (authLoading || !user || !gid) return
+    startSession()
+  }, [authLoading, user, gid, startSession])
 
   useEffect(() => {
     if (!user) return undefined
@@ -97,7 +136,7 @@ export default function GamePlay() {
       <div className="game-play-shell">
         <div className="game-play-loader">
           <div className="game-play-spinner" />
-          <p>Loading game…</p>
+          <p>Loading…</p>
         </div>
       </div>
     )
@@ -107,11 +146,11 @@ export default function GamePlay() {
     return <Navigate to="/login" replace />
   }
 
-  const launchUrl = !game?.maintenanceMode ? game?.launchUrl || game?.demoUrl || '' : ''
-
-  if (!game || !launchUrl) {
+  if (!gid) {
     return <Navigate to="/" replace />
   }
+
+  const displayName = game?.name || gid
 
   function handleBack() {
     refreshBalance().catch(() => {})
@@ -125,12 +164,12 @@ export default function GamePlay() {
           type="button"
           className="game-strip-back"
           onClick={handleBack}
-          aria-label={`Back to lobby from ${game.name}`}
+          aria-label={`Back to lobby from ${displayName}`}
         >
           <span className="game-strip-chevron">
             <IconChevronLeft />
           </span>
-          <span className="game-strip-title">{game.name}</span>
+          <span className="game-strip-title">{displayName}</span>
         </button>
 
         <div className="game-strip-user" title={user.username || 'Player'}>
@@ -142,19 +181,45 @@ export default function GamePlay() {
       </header>
 
       <main className="game-stage">
-        {!frameLoaded ? (
-          <div className="game-stage-loading" aria-live="polite">
-            <div className="game-play-spinner" />
+        {launchError ? (
+          <div className="game-stage-error" role="alert">
+            <p>{launchError}</p>
+            <div className="game-stage-actions">
+              <button
+                type="button"
+                className="btn-game btn-play"
+                onClick={startSession}
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                className="btn-game btn-purple"
+                onClick={handleBack}
+              >
+                Back to Lobby
+              </button>
+            </div>
           </div>
-        ) : null}
-        <iframe
-          src={launchUrl}
-          title={game.name}
-          className="game-iframe"
-          allow="autoplay; fullscreen; clipboard-read; clipboard-write"
-          allowFullScreen
-          onLoad={() => setFrameLoaded(true)}
-        />
+        ) : (
+          <>
+            {launching || !frameLoaded ? (
+              <div className="game-stage-loading" aria-live="polite">
+                <div className="game-play-spinner" />
+              </div>
+            ) : null}
+            {launchUrl ? (
+              <iframe
+                src={launchUrl}
+                title={displayName}
+                className="game-iframe"
+                allow="autoplay; fullscreen; clipboard-read; clipboard-write"
+                allowFullScreen
+                onLoad={() => setFrameLoaded(true)}
+              />
+            ) : null}
+          </>
+        )}
       </main>
     </div>
   )
