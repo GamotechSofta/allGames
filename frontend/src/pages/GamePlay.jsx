@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import { fetchEnabledGames } from '../api'
 import './GamePlay.css'
 
 const PLAY_STORAGE_KEY = 'allgames_active_game'
@@ -75,7 +74,6 @@ export default function GamePlay() {
     }
     return null
   })
-  const [resolving, setResolving] = useState(() => !game && Boolean(slug))
   const [frameLoaded, setFrameLoaded] = useState(false)
 
   useEffect(() => {
@@ -83,37 +81,9 @@ export default function GamePlay() {
     if (fromState) {
       saveStoredGame(fromState)
       setGame(fromState)
-      setResolving(false)
       setFrameLoaded(false)
-      return
     }
-    if (game && (!slug || matchesSlug(game, slug))) return
-    if (!slug) {
-      setResolving(false)
-      return
-    }
-
-    let cancelled = false
-    setResolving(true)
-    fetchEnabledGames()
-      .then((res) => {
-        if (cancelled) return
-        const list = Array.isArray(res.data) ? res.data : []
-        const found = list.find((item) => matchesSlug(item, slug)) || null
-        if (found) saveStoredGame(found)
-        setGame(found)
-      })
-      .catch(() => {
-        if (!cancelled) setGame(null)
-      })
-      .finally(() => {
-        if (!cancelled) setResolving(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [slug, location.state, game])
+  }, [location.state])
 
   useEffect(() => {
     if (!user) return undefined
@@ -122,7 +92,7 @@ export default function GamePlay() {
     }
   }, [user, refreshBalance])
 
-  if (authLoading || resolving) {
+  if (authLoading) {
     return (
       <div className="game-play-shell">
         <div className="game-play-loader">

@@ -17,7 +17,7 @@ import { ensureDefaultAdmin } from './middleware/adminAuth.js'
 import adminRoutes from './routes/admin.routes.js'
 import walletRoutes from './routes/wallet.routes.js'
 import heroBannerRoutes from './routes/heroBanner.routes.js'
-import enabledGamesRoutes from './routes/enabledGames.routes.js'
+import gamesRoutes from './routes/games.routes.js'
 import { userCreditWallet, userDebitWallet } from './controllers/wallet.controller.js'
 
 const app = express()
@@ -242,8 +242,8 @@ app.use('/api/wallet', walletRoutes)
 app.use('/api/v1/wallet', walletRoutes)
 app.use('/api/hero-banners', heroBannerRoutes)
 app.use('/api/v1/hero-banners', heroBannerRoutes)
-app.use('/api/enabled-games', enabledGamesRoutes)
-app.use('/api/v1/enabled-games', enabledGamesRoutes)
+app.use('/api/games', gamesRoutes)
+app.use('/api/v1/games', gamesRoutes)
 
 async function start() {
   await connectDb(process.env.MONGODB_URI)

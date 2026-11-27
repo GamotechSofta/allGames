@@ -61,7 +61,7 @@ export const fetchHistory = (limit = 50) =>
 export const fetchHeroBanners = () =>
   request(`${API_ROOT}/api/hero-banners`)
 
-/** Enabled games for the lobby (from backend GAMES_API + OPERATOR_ID) */
-export const fetchEnabledGames = () =>
-  request(`${API_ROOT}/api/enabled-games`)
+/** Fetch games via backend operations API (opType: 1071) */
+export const fetchGames = () =>
+  request(`${API_ROOT}/api/games`)
 

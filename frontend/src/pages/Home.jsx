@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import { fetchHistory, fetchHeroBanners, fetchEnabledGames } from '../api'
+import { fetchHistory, fetchHeroBanners, fetchGames } from '../api'
 import HeroSection from '../components/HeroSection'
 import GamesGrid from '../components/GamesGrid'
 import siteLogo from '../assets/logo-123games.png'
@@ -207,10 +207,10 @@ export default function Home() {
 
   const moneyHistory = useMemo(() => history, [history])
 
-  function loadEnabledGames() {
+  function loadGames() {
     setGamesLoading(true)
     setGamesError('')
-    return fetchEnabledGames()
+    return fetchGames()
       .then((res) => setGames(res.data || []))
       .catch((err) => {
         setGames([])
@@ -230,7 +230,7 @@ export default function Home() {
       .then((res) => setBanners(res.data || []))
       .catch(() => setBanners([]))
       .finally(() => setBannersLoading(false))
-    loadEnabledGames()
+    loadGames()
   }, [userId, refreshBalance])
 
   useEffect(() => {
@@ -298,7 +298,7 @@ export default function Home() {
       const [historyRes, bannersRes, gamesRes] = await Promise.all([
         fetchHistory(60),
         fetchHeroBanners().catch(() => ({ data: banners })),
-        fetchEnabledGames().catch(() => ({ data: games })),
+        fetchGames().catch(() => ({ data: games })),
       ])
       setHistory(historyRes.data?.feed || historyRes.data?.transactions || [])
       setBanners(bannersRes.data || [])
@@ -467,7 +467,7 @@ export default function Home() {
                   games={games}
                   loading={gamesLoading}
                   error={gamesError}
-                  onRetry={loadEnabledGames}
+                  onRetry={loadGames}
                   onPlay={(game) => {
                     const key = game.slug || game.code || game.id || 'game'
                     navigate(`/play/${encodeURIComponent(key)}`, {

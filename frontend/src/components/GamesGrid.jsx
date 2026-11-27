@@ -50,8 +50,8 @@ export default function GamesGrid({ games = [], loading = false, error = '', onR
                     loading="lazy"
                   />
                 ) : (
-                  <div className="games-thumb-fallback" aria-hidden="true">
-                    <span>{(game.name || 'G').slice(0, 2).toUpperCase()}</span>
+                  <div className="games-thumb-fallback">
+                    <span className="games-thumb-fallback-name">{game.name || 'Game'}</span>
                   </div>
                 )}
                 {isMaintenance ? (
@@ -63,7 +63,7 @@ export default function GamesGrid({ games = [], loading = false, error = '', onR
             return (
               <article
                 key={game.id || game.slug || game.code}
-                className={`games-card ${!targetUrl ? 'is-disabled' : ''}`}
+                className={`games-card ${isMaintenance ? 'is-disabled' : ''}`}
               >
                 {targetUrl ? (
                   typeof onPlay === 'function' ? (

@@ -103,12 +103,18 @@ button.games-card-link:focus-visible {
   aspect-ratio: 4 / 3;
   display: grid;
   place-items: center;
+  padding-inline: 0.75rem;
+  text-align: center;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.games-thumb-fallback-name {
+  overflow-wrap: anywhere;
 }
 
 .games-status-badge {
